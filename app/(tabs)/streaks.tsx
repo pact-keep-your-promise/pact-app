@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography, layout, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { pacts, streakData, getAggregateActivity } from '@/data/mock';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import StreakCard from '@/components/streaks/StreakCard';
 import ActivityGraph from '@/components/streaks/ActivityGraph';
 import Header from '@/components/shared/Header';
@@ -15,20 +16,22 @@ import { adaptColor } from '@/utils/colorUtils';
 export default function StreaksScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const aggregateActivity = getAggregateActivity('u1');
+  const { user } = useAuth();
+  const { pacts, streaks: streakData, getAggregateActivity } = useData();
+  const aggregateActivity = getAggregateActivity(user?.id || '');
   const graphColor = adaptColor(colors.primary, isDark);
 
   const totalStreak = streakData
-    .filter((s) => s.userId === 'u1')
+    .filter((s) => s.userId === user?.id)
     .reduce((sum, s) => sum + s.currentStreak, 0);
 
   const sortedPacts = [...pacts].sort((a, b) => {
-    const streakA = streakData.find(s => s.pactId === a.id && s.userId === 'u1')?.currentStreak || 0;
-    const streakB = streakData.find(s => s.pactId === b.id && s.userId === 'u1')?.currentStreak || 0;
+    const streakA = streakData.find(s => s.pactId === a.id && s.userId === user?.id)?.currentStreak || 0;
+    const streakB = streakData.find(s => s.pactId === b.id && s.userId === user?.id)?.currentStreak || 0;
     return streakB - streakA;
   });
 
-  const hasStreaks = streakData.some(s => s.userId === 'u1');
+  const hasStreaks = streakData.some(s => s.userId === user?.id);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>

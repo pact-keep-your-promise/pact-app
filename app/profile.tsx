@@ -6,14 +6,15 @@ import {
   Pressable,
   Image,
   StyleSheet,
-  Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { currentUser, users, pacts, streakData, submissions } from '@/data/mock';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 
@@ -29,15 +30,17 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark, mode, setMode } = useTheme();
+  const { user, logout } = useAuth();
+  const { users, pacts, streaks: streakData, recentActivity } = useData();
 
-  const friends = users.filter((u) => !u.isCurrentUser);
+  const friends = users;
 
   // Stats
   const totalPacts = pacts.length;
   const totalStreakDays = streakData
-    .filter((s) => s.userId === 'u1')
+    .filter((s) => s.userId === user?.id)
     .reduce((sum, s) => sum + s.currentStreak, 0);
-  const totalVerifications = submissions.filter((s) => s.userId === 'u1').length;
+  const totalVerifications = recentActivity.filter((s) => s.userId === user?.id).length;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
@@ -57,15 +60,15 @@ export default function ProfileScreen() {
         {/* Profile header */}
         <View style={styles.profileHeader}>
           <Avatar
-            uri={currentUser.avatar}
-            name="Nazrin Nasirova"
+            uri={user?.avatar || ''}
+            name={user?.name || ''}
             size={80}
           />
           <Text style={[styles.profileName, { color: colors.textPrimary }]}>
-            Nazrin Nasirova
+            {user?.name}
           </Text>
           <Text style={[styles.profileUsername, { color: colors.textSecondary }]}>
-            @{currentUser.username}
+            @{user?.username}
           </Text>
         </View>
 
@@ -157,9 +160,19 @@ export default function ProfileScreen() {
             title="Sign Out"
             variant="ghost"
             icon="log-out-outline"
-            onPress={() =>
-              Alert.alert('Sign Out', 'Sign out functionality coming soon.')
-            }
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                if (window.confirm('Are you sure you want to sign out?')) {
+                  logout();
+                }
+              } else {
+                const { Alert } = require('react-native');
+                Alert.alert('Sign Out', 'Are you sure?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign Out', style: 'destructive', onPress: logout },
+                ]);
+              }
+            }}
             fullWidth
           />
         </View>

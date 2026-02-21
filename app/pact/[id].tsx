@@ -15,12 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { adaptColor } from '@/utils/colorUtils';
-import {
-  getPactById,
-  getParticipants,
-  getSubmissionsForPact,
-  getStreakForUserPact,
-} from '@/data/mock';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import PactDetailHeader from '@/components/pacts/PactDetailHeader';
 import ParticipantRow from '@/components/pacts/ParticipantRow';
 import CalendarGrid from '@/components/streaks/CalendarGrid';
@@ -33,15 +29,25 @@ export default function PactDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
 
+  const { user } = useAuth();
+  const { getPactById, getParticipants, getStreakForUserPact, fetchSubmissions } = useData();
+
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
 
   const pact = getPactById(id);
+
+  React.useEffect(() => {
+    if (id) {
+      fetchSubmissions(id).then(setSubmissions).catch(console.error);
+    }
+  }, [id]);
+
   if (!pact) return null;
   const pactColor = adaptColor(pact.color, isDark);
 
   const participants = getParticipants(pact);
-  const submissions = getSubmissionsForPact(pact.id);
-  const myStreak = getStreakForUserPact(pact.id, 'u1');
+  const myStreak = getStreakForUserPact(pact.id, user?.id || '');
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>

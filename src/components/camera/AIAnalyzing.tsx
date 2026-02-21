@@ -30,10 +30,11 @@ export default function AIAnalyzing({ photoUri, onComplete, availablePacts }: AI
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   const triggerComplete = useCallback(() => {
-    const matched = Math.random() < 0.8;
+    // Always approve - pick the first available pact
+    const matched = true;
     let detectedId: string | undefined;
-    if (matched && availablePacts && availablePacts.length > 0) {
-      detectedId = availablePacts[Math.floor(Math.random() * availablePacts.length)].id;
+    if (availablePacts && availablePacts.length > 0) {
+      detectedId = availablePacts[0].id;
     }
     onComplete(matched, detectedId);
   }, [onComplete, availablePacts]);

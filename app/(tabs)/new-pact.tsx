@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useData } from '@/contexts/DataContext';
+import { api } from '@/api/client';
 import IconSelector from '@/components/create/IconSelector';
 import FrequencyPicker from '@/components/create/FrequencyPicker';
 import FriendSelector from '@/components/create/FriendSelector';
@@ -62,13 +64,30 @@ export default function NewPactScreen() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [created, setCreated] = useState(false);
 
-  const handleCreate = () => {
+  const { refetch } = useData();
+
+  const handleCreate = async () => {
     if (!title.trim()) {
       Alert.alert('Missing Title', 'Give your pact a name!');
       return;
     }
     if (!selectedIcon) {
       Alert.alert('Missing Icon', 'Choose an icon for your pact!');
+      return;
+    }
+
+    try {
+      await api.post('/pacts', {
+        title: title.trim(),
+        icon: selectedIcon,
+        color: selectedColor,
+        frequency,
+        timesPerWeek: frequency === 'weekly' ? timesPerWeek : undefined,
+        participants: selectedFriends,
+      });
+      await refetch();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to create pact');
       return;
     }
 

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { User, Pact } from '@/data/types';
-import { getStreakForUserPact, getSubmissionsForPact } from '@/data/mock';
+import { useData } from '@/contexts/DataContext';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import NudgeButton from './NudgeButton';
@@ -17,11 +17,11 @@ interface ParticipantRowProps {
 
 export default function ParticipantRow({ user, pact, onNudge }: ParticipantRowProps) {
   const { colors } = useTheme();
+  const { getStreakForUserPact, recentActivity } = useData();
   const streak = getStreakForUserPact(pact.id, user.id);
-  const submissions = getSubmissionsForPact(pact.id);
   const today = new Date().toISOString().split('T')[0];
-  const hasSubmittedToday = submissions.some(
-    (s) => s.userId === user.id && s.timestamp.split('T')[0] === today
+  const hasSubmittedToday = recentActivity.some(
+    (s) => s.pactId === pact.id && s.userId === user.id && s.timestamp.split('T')[0] === today
   );
 
   return (

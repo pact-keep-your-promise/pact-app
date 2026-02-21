@@ -3,7 +3,8 @@ import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { spacing, typography, borderRadius, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Pact } from '@/data/types';
-import { getParticipants, getStreakForUserPact, getPendingParticipants } from '@/data/mock';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Card from '@/components/ui/Card';
@@ -19,9 +20,11 @@ interface PactCardProps {
 
 export default function PactCard({ pact, onPress }: PactCardProps) {
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
+  const { getParticipants, getStreakForUserPact, getPendingParticipants } = useData();
   const pactColor = adaptColor(pact.color, isDark);
   const participants = getParticipants(pact);
-  const myStreak = getStreakForUserPact(pact.id, 'u1');
+  const myStreak = getStreakForUserPact(pact.id, user?.id || '');
   const pendingFriends = getPendingParticipants(pact);
 
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(new Set());

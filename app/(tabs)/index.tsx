@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { pacts, currentUser, notifications, getUnreadNotificationCount } from '@/data/mock';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import PactCard from '@/components/pacts/PactCard';
 import ActivityFeed from '@/components/pacts/ActivityFeed';
 import DeadlineWarning from '@/components/pacts/DeadlineWarning';
@@ -22,6 +23,8 @@ export default function PactsHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark, mode, setMode } = useTheme();
+  const { user } = useAuth();
+  const { pacts, notifications, getUnreadNotificationCount } = useData();
   const [showWarning, setShowWarning] = useState(true);
 
   const deadlineWarning = notifications.find(n => n.type === 'deadline_warning' && !n.read);
@@ -55,7 +58,7 @@ export default function PactsHomeScreen() {
               )}
             </Pressable>
             <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
-              <Image source={{ uri: currentUser.avatar }} style={[styles.profileAvatar, { borderColor: colors.primary }]} />
+              <Image source={{ uri: user?.avatar }} style={[styles.profileAvatar, { borderColor: colors.primary }]} />
             </Pressable>
           </View>
         </View>

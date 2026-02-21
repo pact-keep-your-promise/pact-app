@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, borderRadius, shadows } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Pact } from '@/data/types';
-import { getStreakForUserPact } from '@/data/mock';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import Button from '@/components/ui/Button';
 import PactMatchCard from './PactMatchCard';
 
@@ -65,7 +66,9 @@ interface VerificationResultProps {
 
 export default function VerificationResult({ matched, pact, onSend, onRetry, onChangePact }: VerificationResultProps) {
   const { colors } = useTheme();
-  const streak = pact ? getStreakForUserPact(pact.id, 'u1') : undefined;
+  const { user } = useAuth();
+  const { getStreakForUserPact } = useData();
+  const streak = pact ? getStreakForUserPact(pact.id, user?.id || '') : undefined;
   const iconScale = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;

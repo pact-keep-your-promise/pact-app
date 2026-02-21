@@ -3,13 +3,14 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { spacing, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getRecentActivity } from '@/data/mock';
+import { useData } from '@/contexts/DataContext';
 import ActivityWidget from './ActivityWidget';
 import EmptyState from '@/components/shared/EmptyState';
 
 export default function ActivityFeed() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { getRecentActivity } = useData();
   const activity = getRecentActivity();
 
   if (activity.length === 0) {

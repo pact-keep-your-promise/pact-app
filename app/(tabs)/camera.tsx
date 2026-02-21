@@ -14,7 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { spacing, borderRadius, typography, layout, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { pacts } from '@/data/mock';
+import { useData } from '@/contexts/DataContext';
 import { adaptColor } from '@/utils/colorUtils';
 import IconBadge from '@/components/ui/IconBadge';
 import ShutterButton from '@/components/camera/ShutterButton';
@@ -28,6 +28,7 @@ export default function CameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { pacts, refetch } = useData();
   const [state, setState] = useState<CameraState>('ready');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [matched, setMatched] = useState(false);
@@ -79,7 +80,16 @@ export default function CameraScreen() {
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (detectedPactId && photoUri) {
+      try {
+        const { api } = require('@/api/client');
+        await api.post('/submissions', { pactId: detectedPactId, photoUri });
+        await refetch();
+      } catch (e) {
+        console.error('Failed to submit:', e);
+      }
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     resetCamera();
   };

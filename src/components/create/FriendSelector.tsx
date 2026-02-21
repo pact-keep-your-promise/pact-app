@@ -4,9 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { users } from '@/data/mock';
-
-const friends = users.filter((u) => !u.isCurrentUser);
+import { useData } from '@/contexts/DataContext';
 
 const AVATAR_SIZE = 64;
 
@@ -17,6 +15,8 @@ interface FriendSelectorProps {
 
 export default function FriendSelector({ selectedIds, onToggle }: FriendSelectorProps) {
   const { colors } = useTheme();
+  const { users } = useData();
+  const friends = users;
 
   return (
     <ScrollView

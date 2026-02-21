@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { notifications as mockNotifications, getUserById } from '@/data/mock';
+import { useData } from '@/contexts/DataContext';
+import { api } from '@/api/client';
 import IconBadge from '@/components/ui/IconBadge';
 import { Notification } from '@/data/types';
 import { adaptColor } from '@/utils/colorUtils';
@@ -28,6 +29,7 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { notifications: dataNotifications, refetch } = useData();
 
   const iconMap = useMemo<Record<Notification['type'], { icon: string; color: string }>>(() => ({
     nudge:            { icon: 'hand-left', color: adaptColor('#4ECDC4', isDark) },
@@ -36,13 +38,23 @@ export default function NotificationsScreen() {
     new_submission:   { icon: 'camera',    color: adaptColor('#95E1D3', isDark) },
   }), [isDark]);
 
-  const [notificationsList, setNotificationsList] = useState(mockNotifications);
+  const [notificationsList, setNotificationsList] = useState(dataNotifications);
 
-  const markAllRead = useCallback(() => {
+  React.useEffect(() => {
+    setNotificationsList(dataNotifications);
+  }, [dataNotifications]);
+
+  const markAllRead = useCallback(async () => {
     setNotificationsList((prev) =>
       prev.map((n) => ({ ...n, read: true }))
     );
-  }, []);
+    try {
+      await api.put('/notifications/read');
+      await refetch();
+    } catch (e) {
+      console.error('Failed to mark notifications as read:', e);
+    }
+  }, [refetch]);
 
   const renderItem = useCallback(
     ({ item }: { item: Notification }) => {
