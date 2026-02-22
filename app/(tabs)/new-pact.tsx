@@ -66,16 +66,7 @@ export default function NewPactScreen() {
 
   const { refetch } = useData();
 
-  const handleCreate = async () => {
-    if (!title.trim()) {
-      Alert.alert('Missing Title', 'Give your pact a name!');
-      return;
-    }
-    if (!selectedIcon) {
-      Alert.alert('Missing Icon', 'Choose an icon for your pact!');
-      return;
-    }
-
+  const submitPact = async () => {
     try {
       await api.post('/pacts', {
         title: title.trim(),
@@ -101,6 +92,35 @@ export default function NewPactScreen() {
       setSelectedFriends([]);
       router.navigate('/(tabs)');
     }, 1500);
+  };
+
+  const handleCreate = async () => {
+    if (!title.trim()) {
+      Alert.alert('Missing Title', 'Give your pact a name!');
+      return;
+    }
+    if (!selectedIcon) {
+      Alert.alert('Missing Icon', 'Choose an icon for your pact!');
+      return;
+    }
+
+    if (selectedFriends.length === 0) {
+      const message = 'Habits stick better with friends! Invite someone to keep each other accountable and make it fun.';
+      if (Platform.OS === 'web') {
+        if (!window.confirm(`Better Together!\n\n${message}\n\nContinue without friends?`)) {
+          return;
+        }
+        await submitPact();
+      } else {
+        Alert.alert('Better Together!', message, [
+          { text: 'Add Friends', style: 'cancel' },
+          { text: 'Go Solo', onPress: () => submitPact() },
+        ]);
+      }
+      return;
+    }
+
+    await submitPact();
   };
 
   const toggleFriend = (userId: string) => {
