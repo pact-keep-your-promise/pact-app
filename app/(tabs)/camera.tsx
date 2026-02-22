@@ -19,10 +19,11 @@ import { adaptColor } from '@/utils/colorUtils';
 import IconBadge from '@/components/ui/IconBadge';
 import ShutterButton from '@/components/camera/ShutterButton';
 import PhotoPreview from '@/components/camera/PhotoPreview';
+import ImageCropModal from '@/components/camera/ImageCropModal';
 import AIAnalyzing from '@/components/camera/AIAnalyzing';
 import VerificationResult from '@/components/camera/VerificationResult';
 
-type CameraState = 'ready' | 'preview' | 'analyzing' | 'result';
+type CameraState = 'ready' | 'preview' | 'cropping' | 'analyzing' | 'result';
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -41,8 +42,6 @@ export default function CameraScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -51,17 +50,9 @@ export default function CameraScreen() {
     }
   };
 
-  const handleCrop = async () => {
+  const handleCrop = () => {
     if (!photoUri) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-    }
+    setState('cropping');
   };
 
   const handleVerify = () => {
@@ -172,6 +163,21 @@ export default function CameraScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
         <PhotoPreview photoUri={photoUri} onRetake={resetCamera} onVerify={handleVerify} onCrop={handleCrop} />
+      </View>
+    );
+  }
+
+  if (state === 'cropping' && photoUri) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
+        <ImageCropModal
+          photoUri={photoUri}
+          onConfirm={(croppedUri) => {
+            setPhotoUri(croppedUri);
+            setState('preview');
+          }}
+          onCancel={() => setState('preview')}
+        />
       </View>
     );
   }

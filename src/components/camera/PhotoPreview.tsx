@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Image, Dimensions, View, Pressable, Text, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, borderRadius, typography } from '@/constants/theme';
+import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const MAX_PHOTO_W = SCREEN_WIDTH - spacing.xl * 2;
+const MAX_PHOTO_H = MAX_PHOTO_W * 1.3;
 
 interface PhotoPreviewProps {
   photoUri: string;
@@ -17,6 +19,11 @@ export default function PhotoPreview({ photoUri, onRetake, onVerify, onCrop }: P
   const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const slideY = useRef(new Animated.Value(30)).current;
+  const [imageAspect, setImageAspect] = useState(1);
+
+  useEffect(() => {
+    Image.getSize(photoUri, (w, h) => setImageAspect(w / h), () => {});
+  }, [photoUri]);
 
   useEffect(() => {
     Animated.parallel([
@@ -25,9 +32,25 @@ export default function PhotoPreview({ photoUri, onRetake, onVerify, onCrop }: P
     ]).start();
   }, []);
 
+  // Fit image within max bounds preserving aspect ratio
+  let photoWidth: number, photoHeight: number;
+  if (imageAspect >= MAX_PHOTO_W / MAX_PHOTO_H) {
+    photoWidth = MAX_PHOTO_W;
+    photoHeight = MAX_PHOTO_W / imageAspect;
+  } else {
+    photoHeight = MAX_PHOTO_H;
+    photoWidth = MAX_PHOTO_H * imageAspect;
+  }
+
   return (
     <Animated.View style={[styles.container, { opacity, transform: [{ translateY: slideY }] }]}>
-      <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
+      <View style={styles.imageArea}>
+        <Image
+          source={{ uri: photoUri }}
+          style={[styles.photo, { width: photoWidth, height: photoHeight }]}
+          resizeMode="cover"
+        />
+      </View>
       <View style={styles.buttons}>
         <Pressable style={[styles.secondaryBtn, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]} onPress={onRetake}>
           <Ionicons name="refresh" size={20} color={colors.textPrimary} />
@@ -51,13 +74,15 @@ export default function PhotoPreview({ photoUri, onRetake, onVerify, onCrop }: P
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: spacing.xl,
+    paddingBottom: layout.tabBarClearance,
+  },
+  imageArea: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
   },
   photo: {
-    width: SCREEN_WIDTH - spacing.xl * 2,
-    height: SCREEN_WIDTH - spacing.xl * 2,
     borderRadius: borderRadius.xxl,
     overflow: 'hidden',
   },
