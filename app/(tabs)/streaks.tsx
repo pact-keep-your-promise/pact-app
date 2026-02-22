@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography, layout, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
 import StreakCard from '@/components/streaks/StreakCard';
 import ActivityGraph from '@/components/streaks/ActivityGraph';
 import Header from '@/components/shared/Header';
@@ -17,7 +17,7 @@ export default function StreaksScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { pacts, streaks: streakData, getAggregateActivity } = useData();
+  const { pacts, streaks: streakData, getAggregateActivity } = useDataHelpers();
   const aggregateActivity = getAggregateActivity(user?.id || '');
   const graphColor = adaptColor(colors.primary, isDark);
 

@@ -4,7 +4,7 @@ import { spacing, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Pact } from '@/data/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
 import ProgressRing from '@/components/ui/ProgressRing';
 import Avatar from '@/components/ui/Avatar';
 import Card from '@/components/ui/Card';
@@ -20,7 +20,7 @@ interface StreakCardProps {
 export default function StreakCard({ pact }: StreakCardProps) {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { getParticipants, getStreakForUserPact, getCompletionRate } = useData();
+  const { getParticipants, getStreakForUserPact, getCompletionRate } = useDataHelpers();
   const pactColor = adaptColor(pact.color, isDark);
   const streak = getStreakForUserPact(pact.id, user?.id || '');
   const participants = getParticipants(pact).filter(u => !u.isCurrentUser);

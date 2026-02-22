@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 
@@ -31,7 +31,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark, mode, setMode } = useTheme();
   const { user, logout } = useAuth();
-  const { users, pacts, streaks: streakData, recentActivity } = useData();
+  const { users, pacts, streaks: streakData, recentActivity } = useDataHelpers();
   const [signingOut, setSigningOut] = React.useState(false);
 
   const friends = users;

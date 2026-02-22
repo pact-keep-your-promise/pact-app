@@ -8,7 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
+import { usePacts, useNotifications } from '@/api/queries';
+import { queryKeys } from '@/api/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
 import PactCard from '@/components/pacts/PactCard';
 import ActivityFeed from '@/components/pacts/ActivityFeed';
 import DeadlineWarning from '@/components/pacts/DeadlineWarning';
@@ -26,14 +29,19 @@ export default function PactsHomeScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark, mode, setMode } = useTheme();
   const { user } = useAuth();
-  const { pacts, notifications, getUnreadNotificationCount, loading, refetch } = useData();
+  const queryClient = useQueryClient();
+  const { data: pacts = [], isLoading: loading } = usePacts();
+  const { data: notifications = [] } = useNotifications();
+  const { getUnreadNotificationCount } = useDataHelpers();
   const [showWarning, setShowWarning] = useState(true);
 
   // Refetch data whenever the home screen is focused
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch])
+      queryClient.invalidateQueries({ queryKey: queryKeys.pacts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.submissions.recent });
+    }, [queryClient])
   );
 
   const deadlineWarning = notifications.find(n => n.type === 'deadline_warning' && !n.read);

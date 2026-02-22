@@ -19,7 +19,9 @@ import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { adaptColor } from '@/utils/colorUtils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
+import { usePactSubmissions } from '@/api/queries';
+import { useLeavePact } from '@/api/mutations';
 import PactDetailHeader from '@/components/pacts/PactDetailHeader';
 import ParticipantRow from '@/components/pacts/ParticipantRow';
 import CalendarGrid from '@/components/streaks/CalendarGrid';
@@ -33,19 +35,14 @@ export default function PactDetailScreen() {
   const { colors, isDark } = useTheme();
 
   const { user } = useAuth();
-  const { getPactById, getParticipants, getStreakForUserPact, fetchSubmissions, leavePact } = useData();
+  const { getPactById, getParticipants, getStreakForUserPact } = useDataHelpers();
+  const { data: submissions = [] } = usePactSubmissions(id);
+  const leavePactMutation = useLeavePact();
 
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
-  const [submissions, setSubmissions] = useState<any[]>([]);
   const [givingUp, setGivingUp] = useState(false);
 
   const pact = getPactById(id);
-
-  React.useEffect(() => {
-    if (id) {
-      fetchSubmissions(id).then(setSubmissions).catch(console.error);
-    }
-  }, [id]);
 
   if (!pact) return null;
   const pactColor = adaptColor(pact.color, isDark);
@@ -65,7 +62,7 @@ export default function PactDetailScreen() {
       if (!confirmed) return;
       setGivingUp(true);
       try {
-        await leavePact(pact.id);
+        await leavePactMutation.mutateAsync(pact.id);
         router.replace('/');
       } catch (e: any) {
         setGivingUp(false);
@@ -83,7 +80,7 @@ export default function PactDetailScreen() {
             onPress: async () => {
               setGivingUp(true);
               try {
-                await leavePact(pact.id);
+                await leavePactMutation.mutateAsync(pact.id);
                 router.replace('/');
               } catch (e: any) {
                 setGivingUp(false);

@@ -4,8 +4,8 @@ import { spacing, typography, borderRadius, withAlpha } from '@/constants/theme'
 import { useTheme } from '@/contexts/ThemeContext';
 import { Pact } from '@/data/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
-import { api } from '@/api/client';
+import { useDataHelpers } from '@/api/helpers';
+import { useNudge } from '@/api/mutations';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Card from '@/components/ui/Card';
@@ -22,7 +22,8 @@ interface PactCardProps {
 export default function PactCard({ pact, onPress }: PactCardProps) {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { getParticipants, getStreakForUserPact, getPendingParticipants } = useData();
+  const { getParticipants, getStreakForUserPact, getPendingParticipants } = useDataHelpers();
+  const nudgeMutation = useNudge();
   const pactColor = adaptColor(pact.color, isDark);
   const participants = getParticipants(pact);
   const myStreak = getStreakForUserPact(pact.id, user?.id || '');
@@ -45,7 +46,7 @@ export default function PactCard({ pact, onPress }: PactCardProps) {
   const handleNudge = (userId: string) => {
     runShake();
     setNudgedIds((prev) => new Set(prev).add(userId));
-    api.post(`/nudge/${pact.id}`, { targetUserId: userId }).catch(console.error);
+    nudgeMutation.mutate({ pactId: pact.id, targetUserId: userId });
     setTimeout(() => {
       setNudgedIds((prev) => {
         const next = new Set(prev);
@@ -59,7 +60,7 @@ export default function PactCard({ pact, onPress }: PactCardProps) {
     runShake();
     const allIds = new Set(pendingFriends.map((f) => f.id));
     setNudgedIds(allIds);
-    api.post(`/nudge/${pact.id}`).catch(console.error);
+    nudgeMutation.mutate({ pactId: pact.id });
     setTimeout(() => setNudgedIds(new Set()), 2000);
   };
 

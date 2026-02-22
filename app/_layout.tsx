@@ -1,14 +1,22 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/api/queryClient';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { DataProvider } from '@/contexts/DataContext';
 import LoginScreen from './login';
 
 function RootStack() {
   const { colors, isDark } = useTheme();
-  const { user, loading } = useAuth();
+  const { user, loading, token } = useAuth();
+
+  React.useEffect(() => {
+    if (!token) {
+      queryClient.clear();
+    }
+  }, [token]);
 
   if (loading) {
     return (
@@ -21,7 +29,7 @@ function RootStack() {
   }
 
   return (
-    <DataProvider>
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -61,7 +69,7 @@ function RootStack() {
           }}
         />
       </Stack>
-    </DataProvider>
+    </>
   );
 }
 
@@ -69,7 +77,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RootStack />
+        <QueryClientProvider client={queryClient}>
+          <RootStack />
+        </QueryClientProvider>
       </AuthProvider>
     </ThemeProvider>
   );

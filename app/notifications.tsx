@@ -6,8 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useData } from '@/contexts/DataContext';
-import { api } from '@/api/client';
+import { useNotifications } from '@/api/queries';
+import { useMarkNotificationsRead, useAcceptInvitation, useDeclineInvitation } from '@/api/mutations';
+import { queryKeys } from '@/api/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
 import IconBadge from '@/components/ui/IconBadge';
 import { Notification } from '@/data/types';
 import { adaptColor } from '@/utils/colorUtils';
@@ -30,7 +32,11 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const { notifications: dataNotifications, refetch, acceptInvitation, declineInvitation } = useData();
+  const queryClient = useQueryClient();
+  const { data: dataNotifications = [] } = useNotifications();
+  const markReadMutation = useMarkNotificationsRead();
+  const acceptMutation = useAcceptInvitation();
+  const declineMutation = useDeclineInvitation();
 
   const iconMap = useMemo<Record<Notification['type'], { icon: string; color: string }>>(() => ({
     nudge:            { icon: 'hand-left', color: adaptColor('#4ECDC4', isDark) },
@@ -47,8 +53,8 @@ export default function NotificationsScreen() {
   // Refetch data whenever the notifications screen is focused
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch])
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    }, [queryClient])
   );
 
   React.useEffect(() => {
@@ -61,13 +67,12 @@ export default function NotificationsScreen() {
       prev.map((n) => ({ ...n, read: true }))
     );
     try {
-      await api.put('/notifications/read');
-      await refetch();
+      await markReadMutation.mutateAsync();
     } catch (e) {
       console.error('Failed to mark notifications as read:', e);
     }
     setMarkingRead(false);
-  }, [refetch]);
+  }, [markReadMutation]);
 
   const renderItem = useCallback(
     ({ item }: { item: Notification }) => {
@@ -107,7 +112,7 @@ export default function NotificationsScreen() {
                   disabled={loadingAction === item.id}
                   onPress={async () => {
                     setLoadingAction(item.id);
-                    try { await acceptInvitation(item.id); } catch (e) { console.error(e); }
+                    try { await acceptMutation.mutateAsync(item.id); } catch (e) { console.error(e); }
                     setLoadingAction(null);
                   }}
                 >
@@ -125,7 +130,7 @@ export default function NotificationsScreen() {
                   disabled={loadingAction === item.id}
                   onPress={async () => {
                     setLoadingAction(item.id);
-                    try { await declineInvitation(item.id); } catch (e) { console.error(e); }
+                    try { await declineMutation.mutateAsync(item.id); } catch (e) { console.error(e); }
                     setLoadingAction(null);
                   }}
                 >
@@ -141,7 +146,7 @@ export default function NotificationsScreen() {
         </View>
       );
     },
-    [colors, iconMap, acceptInvitation, declineInvitation]
+    [colors, iconMap, acceptMutation, declineMutation, loadingAction]
   );
 
   const keyExtractor = useCallback((item: Notification) => item.id, []);

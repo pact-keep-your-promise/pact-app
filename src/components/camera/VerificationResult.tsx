@@ -5,7 +5,7 @@ import { spacing, typography, borderRadius, shadows } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Pact } from '@/data/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
 import Button from '@/components/ui/Button';
 import PactMatchCard from './PactMatchCard';
 
@@ -68,7 +68,7 @@ interface VerificationResultProps {
 export default function VerificationResult({ matched, pact, onSend, onRetry, onChangePact, loading }: VerificationResultProps) {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { getStreakForUserPact } = useData();
+  const { getStreakForUserPact } = useDataHelpers();
   const streak = pact ? getStreakForUserPact(pact.id, user?.id || '') : undefined;
   const iconScale = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;

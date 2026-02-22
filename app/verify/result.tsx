@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataHelpers } from '@/api/helpers';
 import VerificationResult from '@/components/camera/VerificationResult';
 
 export default function VerifyResultScreen() {
@@ -13,7 +13,7 @@ export default function VerifyResultScreen() {
     pactId?: string;
   }>();
 
-  const { getPactById } = useData();
+  const { getPactById } = useDataHelpers();
   const isMatched = matched === 'true';
   const pact = pactId ? getPactById(pactId) : undefined;
 

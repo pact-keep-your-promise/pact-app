@@ -14,7 +14,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { spacing, borderRadius, typography, layout, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useData } from '@/contexts/DataContext';
+import { usePacts } from '@/api/queries';
+import { useSubmitPhoto } from '@/api/mutations';
 import { adaptColor } from '@/utils/colorUtils';
 import IconBadge from '@/components/ui/IconBadge';
 import ShutterButton from '@/components/camera/ShutterButton';
@@ -29,7 +30,8 @@ export default function CameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const { pacts, refetch } = useData();
+  const { data: pacts = [] } = usePacts();
+  const submitPhoto = useSubmitPhoto();
   const [state, setState] = useState<CameraState>('ready');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [matched, setMatched] = useState(false);
@@ -76,42 +78,7 @@ export default function CameraScreen() {
     if (detectedPactId && photoUri) {
       setSending(true);
       try {
-        const { getToken } = require('@/api/client');
-        const { Platform } = require('react-native');
-
-        const formData = new FormData();
-        formData.append('pactId', detectedPactId);
-
-        if (Platform.OS === 'web') {
-          // On web, fetch the blob from the local URI and append as file
-          const response = await fetch(photoUri);
-          const blob = await response.blob();
-          formData.append('photo', blob, 'photo.jpg');
-        } else {
-          // On native, use the file URI directly
-          formData.append('photo', {
-            uri: photoUri,
-            type: 'image/jpeg',
-            name: 'photo.jpg',
-          } as any);
-        }
-
-        const token = await getToken();
-        const baseUrl = require('@/api/client').getBaseUrl();
-        const res = await fetch(`${baseUrl}/submissions`, {
-          method: 'POST',
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Upload failed');
-        }
-
-        await refetch();
+        await submitPhoto.mutateAsync({ pactId: detectedPactId, photoUri });
       } catch (e) {
         console.error('Failed to submit:', e);
         setSending(false);
