@@ -15,6 +15,8 @@ export interface Pact {
   frequency: 'daily' | 'weekly';
   timesPerWeek?: number;
   participants: string[];
+  pendingParticipants?: User[];
+  createdBy?: string;
   createdAt: string;
   deadline: string;
 }
@@ -41,7 +43,7 @@ export interface StreakData {
 
 export interface Notification {
   id: string;
-  type: 'nudge' | 'deadline_warning' | 'streak_milestone' | 'new_submission';
+  type: 'nudge' | 'deadline_warning' | 'streak_milestone' | 'new_submission' | 'pact_invitation';
   fromUserId?: string;
   pactId: string;
   message: string;

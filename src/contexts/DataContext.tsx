@@ -28,6 +28,11 @@ interface DataState {
   getRecentActivity: () => (Submission & { user: User; pact: Pact })[];
   // Submissions per pact (fetched on demand)
   fetchSubmissions: (pactId: string) => Promise<(Submission & { user?: User })[]>;
+  // Invitation actions
+  acceptInvitation: (notificationId: string) => Promise<void>;
+  declineInvitation: (notificationId: string) => Promise<void>;
+  // Leave pact
+  leavePact: (pactId: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataState>({} as DataState);
@@ -147,6 +152,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return api.get<(Submission & { user?: User })[]>(`/pacts/${pactId}/submissions`);
   }, []);
 
+  const acceptInvitation = useCallback(async (notificationId: string) => {
+    await api.post(`/notifications/${notificationId}/accept`);
+    await refetch();
+  }, [refetch]);
+
+  const declineInvitation = useCallback(async (notificationId: string) => {
+    await api.post(`/notifications/${notificationId}/decline`);
+    await refetch();
+  }, [refetch]);
+
+  const leavePact = useCallback(async (pactId: string) => {
+    await api.post(`/pacts/${pactId}/leave`);
+    await refetch();
+  }, [refetch]);
+
   return (
     <DataContext.Provider value={{
       pacts,
@@ -167,6 +187,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       getAggregateActivity,
       getRecentActivity: getRecentActivityFn,
       fetchSubmissions,
+      acceptInvitation,
+      declineInvitation,
+      leavePact,
     }}>
       {children}
     </DataContext.Provider>

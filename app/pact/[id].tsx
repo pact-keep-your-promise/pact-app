@@ -8,6 +8,8 @@ import {
   Image,
   Dimensions,
   Modal,
+  Platform,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +32,7 @@ export default function PactDetailScreen() {
   const { colors, isDark } = useTheme();
 
   const { user } = useAuth();
-  const { getPactById, getParticipants, getStreakForUserPact, fetchSubmissions } = useData();
+  const { getPactById, getParticipants, getStreakForUserPact, fetchSubmissions, leavePact } = useData();
 
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -48,6 +50,45 @@ export default function PactDetailScreen() {
 
   const participants = getParticipants(pact);
   const myStreak = getStreakForUserPact(pact.id, user?.id || '');
+
+  const handleGiveUp = async () => {
+    const streakCount = myStreak?.currentStreak || 0;
+    const hasFriends = participants.length > 1;
+    const confirmMessage = hasFriends
+      ? `Are you sure you want to give up? Your friends are counting on you! You'll lose your ${streakCount}-day streak and leave the pact.`
+      : `Are you sure you want to give up? You'll lose your ${streakCount}-day streak and all progress on this pact.`;
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(confirmMessage);
+      if (!confirmed) return;
+      try {
+        await leavePact(pact.id);
+        router.replace('/');
+      } catch (e: any) {
+        window.alert(e.message || 'Failed to leave pact');
+      }
+    } else {
+      Alert.alert(
+        'Give Up?',
+        confirmMessage,
+        [
+          { text: 'Keep Going!', style: 'cancel' },
+          {
+            text: 'I Give Up',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await leavePact(pact.id);
+                router.replace('/');
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Failed to leave pact');
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
@@ -72,9 +113,25 @@ export default function PactDetailScreen() {
         {/* Participants */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Participants</Text>
-          {participants.map((user) => (
-            <ParticipantRow key={user.id} user={user} pact={pact} onNudge={() => {}} />
+          {participants.map((u) => (
+            <ParticipantRow key={u.id} user={u} pact={pact} onNudge={() => {}} />
           ))}
+          {pact.pendingParticipants && pact.pendingParticipants.length > 0 && (
+            <View style={styles.pendingSection}>
+              <Text style={[styles.pendingLabel, { color: colors.textTertiary }]}>Invited</Text>
+              {pact.pendingParticipants.map((p: any) => (
+                <View key={p.id} style={[styles.pendingRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
+                  <View style={[styles.pendingAvatar, { backgroundColor: colors.backgroundTertiary }]}>
+                    <Text style={[styles.pendingAvatarText, { color: colors.textTertiary }]}>
+                      {p.name?.charAt(0) || '?'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.pendingName, { color: colors.textTertiary }]}>{p.name}</Text>
+                  <Text style={[styles.pendingStatus, { color: colors.textTertiary }]}>Pending</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* My Streak Calendar */}
@@ -116,6 +173,20 @@ export default function PactDetailScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        {/* Give Up */}
+        <View style={styles.giveUpSection}>
+          <Text style={[styles.giveUpWarning, { color: colors.textTertiary }]}>
+            Giving up means losing your {myStreak?.currentStreak || 0}-day streak{participants.length > 1 ? ' and letting your friends down' : ''}.
+          </Text>
+          <Pressable
+            style={[styles.giveUpButton, { borderColor: colors.error }]}
+            onPress={handleGiveUp}
+          >
+            <Ionicons name="flag-outline" size={16} color={colors.error} />
+            <Text style={[styles.giveUpText, { color: colors.error }]}>Give Up</Text>
+          </Pressable>
         </View>
 
         <View style={{ height: 40 }} />
@@ -227,5 +298,61 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH - spacing.xl * 2,
     height: '80%',
     borderRadius: borderRadius.lg,
+  },
+  pendingSection: {
+    marginTop: spacing.md,
+  },
+  pendingLabel: {
+    ...typography.caption,
+    marginBottom: spacing.sm,
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    opacity: 0.6,
+  },
+  pendingAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingAvatarText: {
+    ...typography.bodyBold,
+  },
+  pendingName: {
+    ...typography.body,
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  pendingStatus: {
+    ...typography.caption,
+  },
+  giveUpSection: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.xxl,
+    alignItems: 'center',
+  },
+  giveUpWarning: {
+    ...typography.caption,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  giveUpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+  },
+  giveUpText: {
+    ...typography.bodyBold,
   },
 });

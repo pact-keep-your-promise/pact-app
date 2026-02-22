@@ -30,13 +30,14 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const { notifications: dataNotifications, refetch } = useData();
+  const { notifications: dataNotifications, refetch, acceptInvitation, declineInvitation } = useData();
 
   const iconMap = useMemo<Record<Notification['type'], { icon: string; color: string }>>(() => ({
     nudge:            { icon: 'hand-left', color: adaptColor('#4ECDC4', isDark) },
     deadline_warning: { icon: 'alarm',     color: adaptColor('#FF6B6B', isDark) },
     streak_milestone: { icon: 'trophy',    color: adaptColor('#FFE66D', isDark) },
     new_submission:   { icon: 'camera',    color: adaptColor('#95E1D3', isDark) },
+    pact_invitation:  { icon: 'mail',      color: adaptColor('#7C5CFC', isDark) },
   }), [isDark]);
 
   const [notificationsList, setNotificationsList] = useState(dataNotifications);
@@ -95,14 +96,32 @@ export default function NotificationsScreen() {
             <Text style={[styles.time, { color: colors.textTertiary }]}>
               {timeAgo(item.timestamp)}
             </Text>
+            {item.type === 'pact_invitation' && !item.read && (
+              <View style={styles.invitationActions}>
+                <Pressable
+                  style={[styles.acceptBtn, { backgroundColor: colors.success }]}
+                  onPress={() => acceptInvitation(item.id).catch(console.error)}
+                >
+                  <Ionicons name="checkmark" size={16} color={colors.onSuccess} />
+                  <Text style={[styles.actionText, { color: colors.onSuccess }]}>Join</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.declineBtn, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}
+                  onPress={() => declineInvitation(item.id).catch(console.error)}
+                >
+                  <Ionicons name="close" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.actionText, { color: colors.textSecondary }]}>Decline</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
-          {!item.read && (
+          {!item.read && item.type !== 'pact_invitation' && (
             <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
           )}
         </View>
       );
     },
-    [colors]
+    [colors, iconMap, acceptInvitation, declineInvitation]
   );
 
   const keyExtractor = useCallback((item: Notification) => item.id, []);
@@ -219,5 +238,31 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     ...typography.body,
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  acceptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  declineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  actionText: {
+    ...typography.caption,
+    fontWeight: '600',
   },
 });

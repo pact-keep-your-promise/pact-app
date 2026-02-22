@@ -135,7 +135,7 @@ export default function NewPactScreen() {
         >
           <View>
             <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>New Pact</Text>
-            <Text style={[styles.screenSubtitle, { color: colors.textTertiary }]}>Make a commitment with friends</Text>
+            <Text style={[styles.screenSubtitle, { color: colors.textTertiary }]}>Make a commitment</Text>
           </View>
 
           {/* Title Input */}
@@ -178,8 +178,8 @@ export default function NewPactScreen() {
 
           {/* Friend Selector */}
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Invite friends</Text>
-            <Text style={[styles.sectionHint, { color: colors.textTertiary }]}>They'll need to keep the pact too!</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Invite friends (optional)</Text>
+            <Text style={[styles.sectionHint, { color: colors.textTertiary }]}>They'll join you in keeping the pact!</Text>
             <FriendSelector
               selectedIds={selectedFriends}
               onToggle={toggleFriend}
