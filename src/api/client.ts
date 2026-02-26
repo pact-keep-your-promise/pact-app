@@ -2,14 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 export const getBaseUrl = () => {
+  // EXPO_PUBLIC_API_URL takes priority (set for mobile/tunnel mode)
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     // On Lightning AI, use the proxy URL pattern for port 3000
     const currentUrl = window.location.href;
     if (currentUrl.includes('lightning.ai')) {
-      // Replace port=8081 (or any port) with port=3000 in the proxy URL
       const url = new URL(currentUrl);
       url.searchParams.set('port', '3000');
-      // Remove any hash/path fragments from the proxy URL
       url.hash = '';
       return url.toString();
     }
@@ -48,6 +50,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   const token = await getToken();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
+    // Bypass localtunnel splash page when using tunnel mode
+    'Bypass-Tunnel-Reminder': 'true',
   };
 
   if (token) {

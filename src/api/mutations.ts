@@ -47,6 +47,7 @@ export function useSubmitPhoto() {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Bypass-Tunnel-Reminder': 'true',
         },
         body: formData,
       });
