@@ -36,7 +36,8 @@
         {
           "photosPermission": "Pact uses your photos to verify habit completion."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

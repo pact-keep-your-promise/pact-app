@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,36 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 
+WebBrowser.maybeCompleteAuthSession();
+
+function GoogleIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 48 48">
+      <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </Svg>
+  );
+}
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { login, register } = useAuth();
+  const { login, register, googleLogin } = useAuth();
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  });
 
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -28,6 +48,46 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!googleResponse) return;
+
+    if (googleResponse.type === 'success') {
+      const accessToken = googleResponse.authentication?.accessToken || googleResponse.params.access_token;
+      if (accessToken) {
+        handleGoogleLogin(accessToken);
+      } else {
+        const msg = 'Google sign-in did not return a token. Please try again.';
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Error', msg);
+        }
+      }
+    } else if (googleResponse.type === 'error') {
+      const msg = googleResponse.error?.message || 'Google sign-in failed';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Error', msg);
+      }
+    }
+  }, [googleResponse]);
+
+  const handleGoogleLogin = async (accessToken: string) => {
+    setLoading(true);
+    try {
+      await googleLogin(accessToken);
+    } catch (e: any) {
+      if (Platform.OS === 'web') {
+        window.alert(e.message || 'Google sign-in failed');
+      } else {
+        Alert.alert('Error', e.message || 'Google sign-in failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -122,6 +182,32 @@ export default function LoginScreen() {
             )}
           </View>
 
+          {Platform.OS === 'web' && (
+            <>
+              <View style={styles.divider}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              <Pressable
+                onPress={() => promptGoogleAsync()}
+                disabled={!googleRequest || loading}
+                style={({ pressed }) => [
+                  styles.googleButton,
+                  { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+                  pressed && { opacity: 0.8 },
+                  (!googleRequest || loading) && styles.disabled,
+                ]}
+              >
+                <GoogleIcon />
+                <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
+                  Continue with Google
+                </Text>
+              </Pressable>
+            </>
+          )}
+
           <Pressable onPress={() => setIsRegister(!isRegister)} style={styles.toggleButton}>
             <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
               {isRegister ? 'Already have an account? ' : "Don't have an account? "}
@@ -183,5 +269,35 @@ const styles = StyleSheet.create({
     ...typography.caption,
     textAlign: 'center',
     marginTop: spacing.sm,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    marginHorizontal: spacing.md,
+    ...typography.caption,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    width: '100%',
+  },
+  googleButtonText: {
+    marginLeft: spacing.md,
+    ...typography.bodyBold,
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });
