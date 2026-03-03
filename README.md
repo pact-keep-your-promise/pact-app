@@ -167,9 +167,18 @@ npx expo run:android
 | `@react-native-async-storage/async-storage` | Theme persistence |
 | `@expo/vector-icons` | Ionicons icon set |
 
+## PWA Support
+
+The web version is installable as a Progressive Web App. All PWA files are web-only and do not affect native iOS/Android builds.
+
+- `public/manifest.json` — app manifest (standalone display, theme colors, icons)
+- `public/sw.js` — service worker caching static assets (API calls pass through untouched)
+- `public/icon-{192,512}x{192,512}.png` — PWA icons generated from `assets/logo.png`
+- `app/+html.tsx` — custom HTML template with manifest link, meta tags, and SW registration
+
+Requires `"output": "static"` in `app.json` web config for `+html.tsx` to be used.
+
 ## Notes
 
-- **No backend** — all data is local mock data. There is no authentication, API, or database.
 - **No real camera** — uses `expo-image-picker` (photo library) to simulate camera capture.
-- **No real AI** — verification is simulated with a 3-second timeout and 80% random match probability.
 - **Deep link scheme** — `pact://` (configured in app.json).
