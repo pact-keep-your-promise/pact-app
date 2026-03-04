@@ -206,19 +206,26 @@ export default function ProfileScreen() {
                 window.alert('Push notifications are blocked. Please enable them in your browser settings and reload the page.');
                 return;
               }
-              if (pushEnabled) {
-                await unsubscribeFromPush();
-                setPushEnabled(false);
-              } else {
-                const success = await subscribeToPush();
-                if (success) {
-                  setPushEnabled(true);
+              try {
+                if (pushEnabled) {
+                  await unsubscribeFromPush();
+                  setPushEnabled(false);
                 } else {
-                  setPushDenied(getPushPermission() === 'denied');
-                  if (getPushPermission() === 'denied') {
-                    window.alert('Push notifications were denied. Please enable them in your browser settings.');
+                  const success = await subscribeToPush();
+                  if (success) {
+                    setPushEnabled(true);
+                  } else {
+                    setPushDenied(getPushPermission() === 'denied');
+                    if (getPushPermission() === 'denied') {
+                      window.alert('Push notifications were denied. Please enable them in your browser settings.');
+                    } else {
+                      window.alert('Failed to enable push notifications. Please try again.');
+                    }
                   }
                 }
+              } catch (e) {
+                console.error('[Push] Toggle error:', e);
+                window.alert('Failed to update push notifications. Check console for details.');
               }
             }}
           >
