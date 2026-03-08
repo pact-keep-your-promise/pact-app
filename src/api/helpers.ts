@@ -22,8 +22,13 @@ export function useDataHelpers() {
     return pacts.find(p => p.id === id);
   }, [pacts]);
 
-  const getStreakForUserPact = useCallback((pactId: string, userId: string): StreakData | undefined => {
-    return streaks.find(s => s.pactId === pactId && s.userId === userId);
+  const getStreakForPact = useCallback((pactId: string): StreakData | undefined => {
+    return streaks.find(s => s.pactId === pactId);
+  }, [streaks]);
+
+  // Keep backward-compat alias (userId is now ignored — streaks are unified per pact)
+  const getStreakForUserPact = useCallback((pactId: string, _userId: string): StreakData | undefined => {
+    return streaks.find(s => s.pactId === pactId);
   }, [streaks]);
 
   const getParticipants = useCallback((pact: Pact): User[] => {
@@ -39,25 +44,27 @@ export function useDataHelpers() {
   }, [getUserById, user]);
 
   const getPendingParticipants = useCallback((pact: Pact): User[] => {
-    const today = new Date().toISOString().split('T')[0];
+    // Use pact timezone for "today" calculation
+    const tz = pact.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
     const todaySubmissions = recentActivity.filter(
-      s => s.pactId === pact.id && s.timestamp.split('T')[0] === today
+      s => s.pactId === pact.id && new Date(s.timestamp).toLocaleDateString('en-CA', { timeZone: tz }) === today
     );
     const submittedUserIds = new Set(todaySubmissions.map(s => s.userId));
     const participants = getParticipants(pact);
     return participants.filter(p => !submittedUserIds.has(p.id) && p.id !== user?.id);
   }, [recentActivity, getParticipants, user]);
 
-  const getCompletionRate = useCallback((pactId: string, userId: string): number => {
+  const getCompletionRate = useCallback((pactId: string, _userId?: string): number => {
     const pact = getPactById(pactId);
     if (!pact) return 0;
-    const streak = getStreakForUserPact(pactId, userId);
+    const streak = getStreakForPact(pactId);
     if (!streak) return 0;
     const daysInWindow = 7;
     const target = pact.frequency === 'daily' ? daysInWindow : (pact.timesPerWeek || 3);
     const recentDates = streak.completedDates.slice(-daysInWindow);
     return Math.min(1, recentDates.length / target);
-  }, [getPactById, getStreakForUserPact]);
+  }, [getPactById, getStreakForPact]);
 
   const getUnreadNotificationCount = useCallback((): number => {
     return notifications.filter(n => !n.read).length;
@@ -74,6 +81,7 @@ export function useDataHelpers() {
   return {
     getUserById,
     getPactById,
+    getStreakForPact,
     getStreakForUserPact,
     getParticipants,
     getPendingParticipants,

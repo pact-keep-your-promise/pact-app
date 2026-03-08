@@ -25,16 +25,15 @@ export default function StreaksScreen() {
   const graphColor = adaptColor(colors.primary, isDark);
 
   const totalStreak = streakData
-    .filter((s) => s.userId === user?.id)
     .reduce((sum, s) => sum + s.currentStreak, 0);
 
   const sortedPacts = [...pacts].sort((a, b) => {
-    const streakA = streakData.find(s => s.pactId === a.id && s.userId === user?.id)?.currentStreak || 0;
-    const streakB = streakData.find(s => s.pactId === b.id && s.userId === user?.id)?.currentStreak || 0;
+    const streakA = streakData.find(s => s.pactId === a.id)?.currentStreak || 0;
+    const streakB = streakData.find(s => s.pactId === b.id)?.currentStreak || 0;
     return streakB - streakA;
   });
 
-  const hasStreaks = streakData.some(s => s.userId === user?.id);
+  const hasStreaks = streakData.length > 0;
 
   const headerContent = (
     <View style={[styles.stickyHeaderInner, { paddingHorizontal: spacing.xl }]}>

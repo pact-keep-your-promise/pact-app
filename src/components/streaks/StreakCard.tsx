@@ -3,14 +3,14 @@ import { View, Text, StyleSheet } from 'react-native';
 import { spacing, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Pact } from '@/data/types';
-import { useAuth } from '@/contexts/AuthContext';
 import { useDataHelpers } from '@/api/helpers';
 import ProgressRing from '@/components/ui/ProgressRing';
-import Avatar from '@/components/ui/Avatar';
 import Card from '@/components/ui/Card';
 import IconBadge from '@/components/ui/IconBadge';
 import StreakCounter from './StreakCounter';
+import MilestoneBadge from './MilestoneBadge';
 import CalendarGrid from './CalendarGrid';
+import TodayProgress from './TodayProgress';
 import { adaptColor } from '@/utils/colorUtils';
 
 interface StreakCardProps {
@@ -19,12 +19,10 @@ interface StreakCardProps {
 
 export default function StreakCard({ pact }: StreakCardProps) {
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
-  const { getParticipants, getStreakForUserPact, getCompletionRate } = useDataHelpers();
+  const { getStreakForPact, getCompletionRate } = useDataHelpers();
   const pactColor = adaptColor(pact.color, isDark);
-  const streak = getStreakForUserPact(pact.id, user?.id || '');
-  const participants = getParticipants(pact).filter(u => !u.isCurrentUser);
-  const completion = getCompletionRate(pact.id, user?.id || '');
+  const streak = getStreakForPact(pact.id);
+  const completion = getCompletionRate(pact.id);
   if (!streak) return null;
 
   return (
@@ -39,6 +37,20 @@ export default function StreakCard({ pact }: StreakCardProps) {
 
       <View style={styles.counterRow}>
         <StreakCounter count={streak.currentStreak} color={pactColor} streakType={streak.streakType} />
+        {streak.currentStreak >= 3 && (
+          <View style={styles.milestoneRow}>
+            <MilestoneBadge streak={streak.currentStreak} color={pactColor} />
+          </View>
+        )}
+      </View>
+
+      {/* Today's completion progress */}
+      <View style={[styles.todayRow, { borderTopColor: colors.border }]}>
+        <TodayProgress
+          completed={streak.todayStatus.completed}
+          total={streak.todayStatus.total}
+          color={pactColor}
+        />
       </View>
 
       <CalendarGrid completedDates={streak.completedDates} color={pactColor} />
@@ -46,25 +58,9 @@ export default function StreakCard({ pact }: StreakCardProps) {
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <Text style={[styles.longestLabel, { color: colors.textTertiary }]}>Longest streak</Text>
         <Text style={[styles.longestValue, { color: colors.textSecondary }]}>
-          {streak.longestStreak} {streak.streakType === 'weekly' ? 'weeks' : 'days'}
+          {streak.longestStreak} {streak.streakType === 'weekly' ? (streak.longestStreak === 1 ? 'week' : 'weeks') : (streak.longestStreak === 1 ? 'day' : 'days')}
         </Text>
       </View>
-
-      {participants.length > 0 && (
-        <View style={[styles.friendsRow, { borderTopColor: colors.border }]}>
-          {participants.map((friend) => {
-            const friendStreak = getStreakForUserPact(pact.id, friend.id);
-            return (
-              <View key={friend.id} style={styles.friendItem}>
-                <Avatar uri={friend.avatar} name={friend.name} size={28} />
-                <Text style={[styles.friendStreak, { color: colors.textSecondary }]}>
-                  {friendStreak?.currentStreak || 0}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
     </Card>
   );
 }
@@ -87,7 +83,16 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   counterRow: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  milestoneRow: {
+    marginTop: spacing.xxs,
+  },
+  todayRow: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    borderTopWidth: 1,
   },
   footer: {
     flexDirection: 'row',
@@ -102,20 +107,5 @@ const styles = StyleSheet.create({
   },
   longestValue: {
     ...typography.bodyBold,
-  },
-  friendsRow: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-  },
-  friendItem: {
-    alignItems: 'center',
-    gap: spacing.xxs,
-  },
-  friendStreak: {
-    ...typography.tiny,
-    fontWeight: '600',
   },
 });

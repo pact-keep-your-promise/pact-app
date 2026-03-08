@@ -19,6 +19,7 @@ export interface Pact {
   createdBy?: string;
   createdAt: string;
   deadline: string;
+  timezone?: string;
 }
 
 export interface ReactionSummary {
@@ -48,13 +49,17 @@ export interface ChatMessage {
 
 export interface StreakData {
   pactId: string;
-  userId: string;
-  /** For daily pacts: consecutive days. For weekly pacts: consecutive weeks meeting the target. */
+  /** Unified streak: consecutive days/weeks where ALL participants completed. */
   currentStreak: number;
   longestStreak: number;
+  /** Dates where ALL participants submitted (unified). */
   completedDates: string[];
+  /** Current user's own completed dates. */
+  myCompletedDates: string[];
   /** 'daily' or 'weekly' — mirrors the pact's frequency for display purposes. */
   streakType: 'daily' | 'weekly';
+  /** How many participants completed today vs total. */
+  todayStatus: { completed: number; total: number };
 }
 
 export interface Notification {

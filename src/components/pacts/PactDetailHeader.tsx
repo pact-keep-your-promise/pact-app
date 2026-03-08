@@ -32,6 +32,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     paddingVertical: spacing.xxxl,
+    paddingHorizontal: spacing.lg,
     marginHorizontal: spacing.xl,
     borderRadius: borderRadius.xxl,
     marginBottom: spacing.xxl,

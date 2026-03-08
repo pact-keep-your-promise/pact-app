@@ -14,7 +14,10 @@ export function useCreatePact() {
       frequency: 'daily' | 'weekly';
       timesPerWeek?: number;
       participants?: string[];
-    }) => api.post<PactWithDetails>('/pacts', data),
+    }) => api.post<PactWithDetails>('/pacts', {
+      ...data,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pacts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });

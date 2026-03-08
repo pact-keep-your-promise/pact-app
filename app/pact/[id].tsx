@@ -28,9 +28,13 @@ import Avatar from '@/components/ui/Avatar';
 import PactDetailHeader from '@/components/pacts/PactDetailHeader';
 import ParticipantRow from '@/components/pacts/ParticipantRow';
 import CalendarGrid from '@/components/streaks/CalendarGrid';
+import StreakFlame from '@/components/streaks/StreakFlame';
+import MilestoneBadge from '@/components/streaks/MilestoneBadge';
+import TodayProgress from '@/components/streaks/TodayProgress';
 import ReactionBar from '@/components/shared/ReactionBar';
 import PactChat from '@/components/pacts/PactChat';
 import { usePactSocket } from '@/api/socket';
+import { featureFlags } from '@/config/featureFlags';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,7 +45,7 @@ export default function PactDetailScreen() {
   const { colors, isDark } = useTheme();
 
   const { user } = useAuth();
-  const { getPactById, getParticipants, getStreakForUserPact } = useDataHelpers();
+  const { getPactById, getParticipants, getStreakForPact } = useDataHelpers();
   const { data: submissions = [] } = usePactSubmissions(id);
   const leavePactMutation = useLeavePact();
   const nudgeMutation = useNudge();
@@ -63,10 +67,10 @@ export default function PactDetailScreen() {
   const pactColor = adaptColor(pact.color, isDark);
 
   const participants = getParticipants(pact);
-  const myStreak = getStreakForUserPact(pact.id, user?.id || '');
+  const pactStreak = getStreakForPact(pact.id);
 
   const handleGiveUp = async () => {
-    const streakCount = myStreak?.currentStreak || 0;
+    const streakCount = pactStreak?.currentStreak || 0;
     const hasFriends = participants.length > 1;
     const confirmMessage = hasFriends
       ? `Are you sure you want to give up? Your friends are counting on you! You'll lose your ${streakCount}-day streak and leave the pact.`
@@ -120,12 +124,27 @@ export default function PactDetailScreen() {
         {/* Header */}
         <PactDetailHeader pact={pact}>
           <View style={styles.streakRow}>
-            <Ionicons name="flame" size={22} color={pactColor} />
-            <Text style={[styles.streakNumber, { color: pactColor }]}>{myStreak?.currentStreak || 0}</Text>
+            <StreakFlame size={22} color={pactColor} streak={pactStreak?.currentStreak || 0} />
+            <Text style={[styles.streakNumber, { color: pactColor }]}>{pactStreak?.currentStreak || 0}</Text>
             <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>
-              {myStreak?.streakType === 'weekly' ? 'week' : 'day'} streak
+              {pactStreak?.streakType === 'weekly' ? 'week' : 'day'} streak
             </Text>
           </View>
+          {pactStreak && pactStreak.currentStreak >= 3 && (
+            <View style={{ marginTop: spacing.sm }}>
+              <MilestoneBadge streak={pactStreak.currentStreak} color={pactColor} />
+            </View>
+          )}
+          {pactStreak?.todayStatus && (
+            <View style={styles.todayProgressRow}>
+              <TodayProgress
+                completed={pactStreak.todayStatus.completed}
+                total={pactStreak.todayStatus.total}
+                color={pactColor}
+                centered
+              />
+            </View>
+          )}
         </PactDetailHeader>
 
         {/* Participants */}
@@ -192,28 +211,28 @@ export default function PactDetailScreen() {
           })()}
         </View>
 
-        {/* My Streak Calendar */}
-        {myStreak && (
+        {/* Pact Streak Calendar (unified — everyone must complete) */}
+        {pactStreak && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Your Streak</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Pact Streak</Text>
             <View style={[styles.calendarCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
               <CalendarGrid
-                completedDates={myStreak.completedDates}
+                completedDates={pactStreak.completedDates}
                 color={pactColor}
               />
               <View style={[styles.streakStats, { borderTopColor: colors.border }]}>
                 <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{myStreak.currentStreak}</Text>
+                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{pactStreak.currentStreak}</Text>
                   <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Current</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{myStreak.longestStreak}</Text>
+                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{pactStreak.longestStreak}</Text>
                   <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Longest</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{myStreak.completedDates.length}</Text>
+                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{pactStreak.completedDates.length}</Text>
                   <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Total</Text>
                 </View>
               </View>
@@ -240,15 +259,17 @@ export default function PactDetailScreen() {
           </View>
         </View>
 
-        {/* Group Chat */}
-        <View style={styles.section}>
-          <PactChat pactId={pact.id} />
-        </View>
+        {/* Group Chat (feature-flagged) */}
+        {featureFlags.pactChat && (
+          <View style={styles.section}>
+            <PactChat pactId={pact.id} />
+          </View>
+        )}
 
         {/* Give Up */}
         <View style={styles.giveUpSection}>
           <Text style={[styles.giveUpWarning, { color: colors.textTertiary }]}>
-            Giving up means losing your {myStreak?.currentStreak || 0}-day streak{participants.length > 1 ? ' and letting your friends down' : ''}.
+            Giving up means losing your {pactStreak?.currentStreak || 0}-day streak{participants.length > 1 ? ' and letting your friends down' : ''}.
           </Text>
           <Pressable
             style={[styles.giveUpButton, { borderColor: colors.error }, givingUp && styles.disabled]}
@@ -337,6 +358,12 @@ const styles = StyleSheet.create({
   },
   streakLabel: {
     ...typography.body,
+  },
+  todayProgressRow: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    width: '100%',
+    paddingHorizontal: spacing.xl,
   },
   section: {
     paddingHorizontal: spacing.xl,
