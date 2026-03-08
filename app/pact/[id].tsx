@@ -72,40 +72,50 @@ export default function PactDetailScreen() {
   const handleGiveUp = async () => {
     const streakCount = pactStreak?.currentStreak || 0;
     const hasFriends = participants.length > 1;
-    const confirmMessage = hasFriends
-      ? `Are you sure you want to give up? Your friends are counting on you! You'll lose your ${streakCount}-day streak and leave the pact.`
-      : `Are you sure you want to give up? You'll lose your ${streakCount}-day streak and all progress on this pact.`;
 
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(confirmMessage);
-      if (!confirmed) return;
+    let title: string;
+    let confirmMessage: string;
+
+    if (streakCount < 2) {
+      title = 'Leave Pact?';
+      confirmMessage = hasFriends
+        ? `You're just getting started! Give it a few more days with your friends before deciding.`
+        : `You're just getting started! Give it a few more days before deciding.`;
+    } else {
+      title = 'Give Up?';
+      confirmMessage = hasFriends
+        ? `Are you sure? Your friends are counting on you! You'll lose your ${streakCount}-day streak and leave the pact.`
+        : `Are you sure? You'll lose your ${streakCount}-day streak and all progress on this pact.`;
+    }
+
+    const doLeave = async () => {
       setGivingUp(true);
       try {
         await leavePactMutation.mutateAsync(pact.id);
         router.replace('/');
       } catch (e: any) {
         setGivingUp(false);
-        window.alert(e.message || 'Failed to leave pact');
+        if (Platform.OS === 'web') {
+          window.alert(e.message || 'Failed to leave pact');
+        } else {
+          Alert.alert('Error', e.message || 'Failed to leave pact');
+        }
       }
+    };
+
+    if (Platform.OS === 'web') {
+      if (!window.confirm(`${title}\n\n${confirmMessage}`)) return;
+      await doLeave();
     } else {
       Alert.alert(
-        'Give Up?',
+        title,
         confirmMessage,
         [
-          { text: 'Keep Going!', style: 'cancel' },
+          { text: streakCount < 2 ? 'Stay' : 'Keep Going!', style: 'cancel' },
           {
-            text: 'I Give Up',
+            text: streakCount < 2 ? 'Leave' : 'I Give Up',
             style: 'destructive',
-            onPress: async () => {
-              setGivingUp(true);
-              try {
-                await leavePactMutation.mutateAsync(pact.id);
-                router.replace('/');
-              } catch (e: any) {
-                setGivingUp(false);
-                Alert.alert('Error', e.message || 'Failed to leave pact');
-              }
-            },
+            onPress: doLeave,
           },
         ]
       );
@@ -269,7 +279,9 @@ export default function PactDetailScreen() {
         {/* Give Up */}
         <View style={styles.giveUpSection}>
           <Text style={[styles.giveUpWarning, { color: colors.textTertiary }]}>
-            Giving up means losing your {pactStreak?.currentStreak || 0}-day streak{participants.length > 1 ? ' and letting your friends down' : ''}.
+            {(pactStreak?.currentStreak || 0) < 2
+              ? 'Not feeling it? You can leave, but consider giving it a few more days.'
+              : `Giving up means losing your ${pactStreak?.currentStreak || 0}-day streak${participants.length > 1 ? ' and letting your friends down' : ''}.`}
           </Text>
           <Pressable
             style={[styles.giveUpButton, { borderColor: colors.error }, givingUp && styles.disabled]}
