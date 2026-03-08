@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/api/queryClient';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -9,10 +10,20 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { isPushSupported, isSubscribedToPush, subscribeToPush } from '@/api/pushSubscription';
 import { connectSocket, disconnectSocket } from '@/api/socket';
 import LoginScreen from './login';
+import OnboardingScreen from './onboarding';
+
+const ONBOARDING_KEY = 'pact_onboarding_completed';
 
 function RootStack() {
   const { colors, isDark } = useTheme();
   const { user, loading, token } = useAuth();
+  const [showOnboarding, setShowOnboarding] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
+      setShowOnboarding(value !== 'true');
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!token) {
@@ -31,9 +42,20 @@ function RootStack() {
     });
   }, [user]);
 
-  if (loading) {
+  if (loading || showOnboarding === null) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }} />
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen
+        onComplete={() => {
+          AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+          setShowOnboarding(false);
+        }}
+      />
     );
   }
 
