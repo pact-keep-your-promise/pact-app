@@ -32,6 +32,7 @@ import StreakFlame from '@/components/streaks/StreakFlame';
 import MilestoneBadge from '@/components/streaks/MilestoneBadge';
 import TodayProgress from '@/components/streaks/TodayProgress';
 import ReactionBar from '@/components/shared/ReactionBar';
+import StreakFreezeInfo from '@/components/streaks/StreakFreezeInfo';
 import PactChat from '@/components/pacts/PactChat';
 import { usePactSocket } from '@/api/socket';
 import { featureFlags } from '@/config/featureFlags';
@@ -221,6 +222,13 @@ export default function PactDetailScreen() {
           })()}
         </View>
 
+        {/* Streak Freeze */}
+        {pactStreak?.freezeInfo && (
+          <View style={styles.section}>
+            <StreakFreezeInfo freezeInfo={pactStreak.freezeInfo} color={pactColor} />
+          </View>
+        )}
+
         {/* Pact Streak Calendar (unified — everyone must complete) */}
         {pactStreak && (
           <View style={styles.section}>
@@ -228,6 +236,7 @@ export default function PactDetailScreen() {
             <View style={[styles.calendarCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
               <CalendarGrid
                 completedDates={pactStreak.completedDates}
+                freezeDates={pactStreak.freezeInfo?.freezeDates}
                 color={pactColor}
               />
               <View style={[styles.streakStats, { borderTopColor: colors.border }]}>
