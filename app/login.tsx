@@ -217,7 +217,7 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-          {!isRegister && (
+          {!isRegister && __DEV__ && (
             <Text style={[styles.hint, { color: colors.textTertiary }]}>
               Demo: nazrin@pact.app / password123
             </Text>
