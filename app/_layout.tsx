@@ -96,6 +96,13 @@ function RootStack() {
           }}
         />
         <Stack.Screen
+          name="legal"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="verify/result"
           options={{
             headerShown: false,

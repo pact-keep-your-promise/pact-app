@@ -197,6 +197,29 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
         </Pressable>
 
+        {/* Legal links */}
+        <Pressable
+          style={[styles.settingsRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, marginTop: spacing.sm }]}
+          onPress={() => router.push('/legal?tab=terms')}
+        >
+          <View style={styles.settingsRowLeft}>
+            <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
+            <Text style={[styles.settingsLabel, { color: colors.textPrimary }]}>Terms of Service</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </Pressable>
+
+        <Pressable
+          style={[styles.settingsRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, marginTop: spacing.sm }]}
+          onPress={() => router.push('/legal?tab=privacy')}
+        >
+          <View style={styles.settingsRowLeft}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
+            <Text style={[styles.settingsLabel, { color: colors.textPrimary }]}>Privacy Policy</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </Pressable>
+
         {/* Push notifications toggle (web only) */}
         {pushSupported && (
           <Pressable

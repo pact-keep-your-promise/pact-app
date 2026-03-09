@@ -9,6 +9,7 @@ import {
   Platform,
   Pressable,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -19,6 +20,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
+import LegalScreen from './legal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -37,6 +39,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { login, register, googleLogin } = useAuth();
+  const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
 
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
@@ -230,7 +233,14 @@ export default function LoginScreen() {
             </Pressable>
 
             <Text style={[styles.termsText, { color: colors.textTertiary }]}>
-              By continuing, you agree to our Terms of Service and Privacy Policy
+              By continuing, you agree to our{' '}
+              <Text style={{ color: colors.primary }} onPress={() => setLegalTab('terms')}>
+                Terms of Service
+              </Text>
+              {' '}and{' '}
+              <Text style={{ color: colors.primary }} onPress={() => setLegalTab('privacy')}>
+                Privacy Policy
+              </Text>
             </Text>
 
             {/* Dev-only: switch to email/password login */}
@@ -244,6 +254,13 @@ export default function LoginScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* Legal modal */}
+      <Modal visible={legalTab !== null} animationType="slide" presentationStyle="pageSheet">
+        {legalTab && (
+          <LegalScreen initialTab={legalTab} onClose={() => setLegalTab(null)} />
+        )}
+      </Modal>
     </View>
   );
 }
