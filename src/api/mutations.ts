@@ -235,6 +235,24 @@ export function useSendMessage() {
   });
 }
 
+export function useUpdatePact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pactId, ...data }: {
+      pactId: string;
+      title?: string;
+      icon?: string;
+      color?: string;
+      frequency?: 'daily' | 'weekly';
+      timesPerWeek?: number;
+    }) => api.put<PactWithDetails>(`/pacts/${pactId}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pacts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.streaks.all });
+    },
+  });
+}
+
 export function useRemoveFriend() {
   const queryClient = useQueryClient();
   return useMutation({

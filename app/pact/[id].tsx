@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   Pressable,
   Image,
   Dimensions,
@@ -21,7 +22,7 @@ import { adaptColor } from '@/utils/colorUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataHelpers } from '@/api/helpers';
 import { usePactSubmissions } from '@/api/queries';
-import { useLeavePact, useNudge, useInviteToPact, useToggleReaction } from '@/api/mutations';
+import { useLeavePact, useNudge, useInviteToPact, useToggleReaction, useUpdatePact } from '@/api/mutations';
 import { useUsers } from '@/api/queries';
 import { Submission, ReactionSummary } from '@/data/types';
 import Avatar from '@/components/ui/Avatar';
@@ -33,6 +34,8 @@ import MilestoneBadge from '@/components/streaks/MilestoneBadge';
 import TodayProgress from '@/components/streaks/TodayProgress';
 import ReactionBar from '@/components/shared/ReactionBar';
 import StreakFreezeInfo from '@/components/streaks/StreakFreezeInfo';
+import IconSelector from '@/components/create/IconSelector';
+import FrequencyPicker from '@/components/create/FrequencyPicker';
 import PactChat from '@/components/pacts/PactChat';
 import { usePactSocket } from '@/api/socket';
 import { featureFlags } from '@/config/featureFlags';
@@ -52,12 +55,19 @@ export default function PactDetailScreen() {
   const nudgeMutation = useNudge();
   const inviteMutation = useInviteToPact();
   const toggleReaction = useToggleReaction();
+  const updatePactMutation = useUpdatePact();
   const { data: friends = [] } = useUsers();
 
   // Subscribe to real-time updates for this pact
   usePactSocket(id);
 
   const [showInvite, setShowInvite] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editIcon, setEditIcon] = useState<string | null>(null);
+  const [editColor, setEditColor] = useState('');
+  const [editFrequency, setEditFrequency] = useState<'daily' | 'weekly'>('daily');
+  const [editTimesPerWeek, setEditTimesPerWeek] = useState(3);
 
   const [lightboxSubmission, setLightboxSubmission] = useState<(Submission & { user?: any }) | null>(null);
   const [givingUp, setGivingUp] = useState(false);
@@ -123,14 +133,68 @@ export default function PactDetailScreen() {
     }
   };
 
+  const openEditModal = () => {
+    setEditTitle(pact.title);
+    setEditIcon(pact.icon);
+    setEditColor(pact.color);
+    setEditFrequency(pact.frequency);
+    setEditTimesPerWeek(pact.timesPerWeek || 3);
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) {
+      if (Platform.OS === 'web') window.alert('Title cannot be empty');
+      else Alert.alert('Error', 'Title cannot be empty');
+      return;
+    }
+    if (!editIcon) {
+      if (Platform.OS === 'web') window.alert('Please select an icon');
+      else Alert.alert('Error', 'Please select an icon');
+      return;
+    }
+
+    const updates: any = { pactId: pact.id };
+    if (editTitle.trim() !== pact.title) updates.title = editTitle.trim();
+    if (editIcon !== pact.icon) updates.icon = editIcon;
+    if (editColor !== pact.color) updates.color = editColor;
+
+    const canEditFrequency = (pactStreak?.currentStreak || 0) === 0;
+    if (canEditFrequency) {
+      if (editFrequency !== pact.frequency) updates.frequency = editFrequency;
+      if (editFrequency === 'weekly' && editTimesPerWeek !== pact.timesPerWeek) updates.timesPerWeek = editTimesPerWeek;
+    }
+
+    // Only send if there are actual changes
+    if (Object.keys(updates).length <= 1) {
+      setShowEdit(false);
+      return;
+    }
+
+    try {
+      await updatePactMutation.mutateAsync(updates);
+      setShowEdit(false);
+    } catch (e: any) {
+      if (Platform.OS === 'web') window.alert(e.message || 'Failed to update pact');
+      else Alert.alert('Error', e.message || 'Failed to update pact');
+    }
+  };
+
+  const canEditFrequency = (pactStreak?.currentStreak || 0) === 0;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Back Button */}
-        <Pressable style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-          <Text style={[styles.backText, { color: colors.textPrimary }]}>Back</Text>
-        </Pressable>
+        {/* Back Button + Edit */}
+        <View style={styles.topBar}>
+          <Pressable style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            <Text style={[styles.backText, { color: colors.textPrimary }]}>Back</Text>
+          </Pressable>
+          <Pressable style={styles.editButton} onPress={openEditModal}>
+            <Ionicons name="pencil" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
 
         {/* Header */}
         <PactDetailHeader pact={pact}>
@@ -311,6 +375,79 @@ export default function PactDetailScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      {/* Edit Pact Modal */}
+      <Modal visible={showEdit} transparent animationType="slide" onRequestClose={() => setShowEdit(false)}>
+        <View style={[styles.editOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <View style={[styles.editModal, { backgroundColor: colors.background }]}>
+            <View style={styles.editModalHeader}>
+              <Text style={[styles.editModalTitle, { color: colors.textPrimary }]}>Edit Pact</Text>
+              <Pressable onPress={() => setShowEdit(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.editScrollContent}>
+              {/* Title */}
+              <View style={styles.editSection}>
+                <Text style={[styles.editLabel, { color: colors.textPrimary }]}>Name</Text>
+                <TextInput
+                  style={[styles.editInput, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  maxLength={40}
+                  placeholder="Pact name"
+                  placeholderTextColor={colors.textTertiary}
+                />
+              </View>
+
+              {/* Icon */}
+              <View style={styles.editSection}>
+                <Text style={[styles.editLabel, { color: colors.textPrimary }]}>Icon</Text>
+                <IconSelector
+                  selectedIcon={editIcon}
+                  onSelect={(icon, color) => { setEditIcon(icon); setEditColor(color); }}
+                />
+              </View>
+
+              {/* Frequency */}
+              <View style={styles.editSection}>
+                <Text style={[styles.editLabel, { color: colors.textPrimary }]}>Frequency</Text>
+                {canEditFrequency ? (
+                  <FrequencyPicker
+                    frequency={editFrequency}
+                    timesPerWeek={editTimesPerWeek}
+                    onChangeFrequency={setEditFrequency}
+                    onChangeTimesPerWeek={setEditTimesPerWeek}
+                  />
+                ) : (
+                  <View>
+                    <Text style={[styles.editFreqValue, { color: colors.textSecondary }]}>
+                      {pact.frequency === 'daily' ? 'Daily' : `${pact.timesPerWeek}x per week`}
+                    </Text>
+                    <Text style={[styles.editFreqHint, { color: colors.textTertiary }]}>
+                      Streak must be 0 to change frequency
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+
+            {/* Save Button */}
+            <Pressable
+              style={[styles.editSaveBtn, { backgroundColor: colors.primary }, updatePactMutation.isPending && styles.disabled]}
+              onPress={handleSaveEdit}
+              disabled={updatePactMutation.isPending}
+            >
+              {updatePactMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.editSaveBtnText}>Save Changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* Photo Lightbox */}
       <Modal visible={!!lightboxSubmission} transparent animationType="fade" onRequestClose={() => setLightboxSubmission(null)}>
         <Pressable style={styles.lightboxOverlay} onPress={() => setLightboxSubmission(null)}>
@@ -358,12 +495,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: spacing.lg,
+  },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.xs,
+  },
+  editButton: {
+    padding: spacing.sm,
   },
   backText: {
     ...typography.body,
@@ -559,5 +705,61 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  editOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  editModal: {
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    maxHeight: '85%',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  editModalTitle: {
+    ...typography.h2,
+  },
+  editScrollContent: {
+    flexGrow: 0,
+  },
+  editSection: {
+    marginBottom: spacing.xl,
+  },
+  editLabel: {
+    ...typography.bodyBold,
+    marginBottom: spacing.md,
+  },
+  editInput: {
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    ...typography.body,
+  },
+  editFreqValue: {
+    ...typography.body,
+  },
+  editFreqHint: {
+    ...typography.caption,
+    marginTop: spacing.xs,
+  },
+  editSaveBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.md,
+  },
+  editSaveBtnText: {
+    ...typography.bodyBold,
+    color: '#fff',
   },
 });
