@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePacts, useUsers, useStreaks, useNotifications, useStreakActivity, useRecentActivity, PactWithDetails } from './queries';
+import { usePacts, useUsers, useStreaks, useFlatNotifications, useStreakActivity, useFlatRecentActivity, useUnreadNotificationCount, PactWithDetails } from './queries';
 import { User, Pact, StreakData, Submission } from '@/data/types';
 
 export function useDataHelpers() {
@@ -9,9 +9,10 @@ export function useDataHelpers() {
   const { data: pacts = [] } = usePacts();
   const { data: users = [] } = useUsers();
   const { data: streaks = [] } = useStreaks();
-  const { data: notifications = [] } = useNotifications();
+  const { data: notifications = [] } = useFlatNotifications();
   const { data: activity = {} } = useStreakActivity();
-  const { data: recentActivity = [] } = useRecentActivity();
+  const { data: recentActivity = [] } = useFlatRecentActivity();
+  const { data: unreadCountData } = useUnreadNotificationCount();
 
   const getUserById = useCallback((id: string): User | undefined => {
     if (user && id === user.id) return { ...user, isCurrentUser: true };
@@ -67,8 +68,9 @@ export function useDataHelpers() {
   }, [getPactById, getStreakForPact]);
 
   const getUnreadNotificationCount = useCallback((): number => {
-    return notifications.filter(n => !n.read).length;
-  }, [notifications]);
+    // Use the dedicated count endpoint for accuracy
+    return unreadCountData?.count ?? notifications.filter(n => !n.read).length;
+  }, [unreadCountData, notifications]);
 
   const getAggregateActivity = useCallback((_userId: string): Record<string, number> => {
     return activity;

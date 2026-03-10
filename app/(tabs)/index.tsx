@@ -10,7 +10,7 @@ import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataHelpers } from '@/api/helpers';
-import { usePacts, useNotifications } from '@/api/queries';
+import { usePacts, useFlatNotifications } from '@/api/queries';
 import { queryKeys } from '@/api/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import PactCard from '@/components/pacts/PactCard';
@@ -34,7 +34,7 @@ export default function PactsHomeScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: pacts = [], isLoading: loading } = usePacts();
-  const { data: notifications = [] } = useNotifications();
+  const { data: notifications = [] } = useFlatNotifications();
   const { getUnreadNotificationCount } = useDataHelpers();
   const [showWarning, setShowWarning] = useState(true);
 

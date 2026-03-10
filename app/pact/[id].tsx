@@ -21,7 +21,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { adaptColor } from '@/utils/colorUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataHelpers } from '@/api/helpers';
-import { usePactSubmissions } from '@/api/queries';
+import { useFlatPactSubmissions } from '@/api/queries';
 import { useLeavePact, useNudge, useInviteToPact, useToggleReaction, useUpdatePact } from '@/api/mutations';
 import { useUsers } from '@/api/queries';
 import { Submission, ReactionSummary } from '@/data/types';
@@ -51,7 +51,12 @@ export default function PactDetailScreen() {
 
   const { user } = useAuth();
   const { getPactById, getParticipants, getStreakForPact } = useDataHelpers();
-  const { data: submissions = [] } = usePactSubmissions(id);
+  const {
+    data: submissions,
+    fetchNextPage: fetchMoreSubmissions,
+    hasNextPage: hasMoreSubmissions,
+    isFetchingNextPage: isFetchingMoreSubmissions,
+  } = useFlatPactSubmissions(id);
   const leavePactMutation = useLeavePact();
   const nudgeMutation = useNudge();
   const inviteMutation = useInviteToPact();
@@ -332,11 +337,13 @@ export default function PactDetailScreen() {
           </View>
         )}
 
-        {/* Recent Submissions */}
+        {/* Submissions */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Submissions</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Submissions
+          </Text>
           <View style={styles.photoGrid}>
-            {submissions.slice(0, 6).map((sub) => (
+            {submissions.map((sub) => (
               <Pressable key={sub.id} onPress={() => setLightboxSubmission(sub)} style={styles.gridPhotoContainer}>
                 <Image source={{ uri: sub.photoUri }} style={styles.gridPhoto} resizeMode="cover" />
                 {sub.reactions && sub.reactions.length > 0 && (
@@ -349,6 +356,19 @@ export default function PactDetailScreen() {
               </Pressable>
             ))}
           </View>
+          {hasMoreSubmissions && (
+            <Pressable
+              onPress={() => fetchMoreSubmissions()}
+              disabled={isFetchingMoreSubmissions}
+              style={[styles.loadMoreBtn, { borderColor: colors.border }]}
+            >
+              {isFetchingMoreSubmissions ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} />
+              ) : (
+                <Text style={[styles.loadMoreText, { color: colors.textSecondary }]}>Load more</Text>
+              )}
+            </Pressable>
+          )}
         </View>
 
         {/* Group Chat (feature-flagged) */}
@@ -601,6 +621,18 @@ const styles = StyleSheet.create({
   },
   reactionIndicatorText: {
     fontSize: 10,
+  },
+  loadMoreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+  },
+  loadMoreText: {
+    ...typography.caption,
+    fontWeight: '600',
   },
   lightboxOverlay: {
     flex: 1,
