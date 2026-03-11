@@ -78,8 +78,10 @@ export interface FreezeInfo {
   onCooldown: boolean;
   /** Personal consecutive submission days (real submissions only) */
   personalStreak: number;
-  /** Days until next freeze earned (0 if at max) */
+  /** Days/weeks until next freeze earned (0 if at max) */
   nextFreezeIn: number;
+  /** Maximum freezes that can be banked (2 for daily, timesPerWeek+1 for weekly) */
+  maxFreezes: number;
 }
 
 export interface WeeklyProgress {
@@ -108,7 +110,7 @@ export interface StreakData {
   streakType: 'daily' | 'weekly';
   /** How many participants completed today vs total. */
   todayStatus: { completed: number; total: number };
-  /** Freeze info for the current user (daily pacts only). */
+  /** Freeze info for the current user. */
   freezeInfo: FreezeInfo | null;
   /** Weekly progress for the current user (weekly pacts only). */
   weeklyProgress?: WeeklyProgress;

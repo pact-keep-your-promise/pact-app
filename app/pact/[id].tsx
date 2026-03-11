@@ -346,7 +346,7 @@ export default function PactDetailScreen() {
         {/* Streak Freeze */}
         {pactStreak?.freezeInfo && (
           <View style={styles.section}>
-            <StreakFreezeInfo freezeInfo={pactStreak.freezeInfo} color={pactColor} />
+            <StreakFreezeInfo freezeInfo={pactStreak.freezeInfo} color={pactColor} frequency={pact.frequency} />
           </View>
         )}
 

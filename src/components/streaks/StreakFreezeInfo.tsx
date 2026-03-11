@@ -5,17 +5,32 @@ import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FreezeInfo } from '@/data/types';
 
-const MAX_FREEZES = 2;
-
 interface StreakFreezeInfoProps {
   freezeInfo: FreezeInfo;
   color: string;
+  frequency?: 'daily' | 'weekly';
 }
 
-export default function StreakFreezeInfo({ freezeInfo, color }: StreakFreezeInfoProps) {
+export default function StreakFreezeInfo({ freezeInfo, color, frequency = 'daily' }: StreakFreezeInfoProps) {
   const { colors } = useTheme();
 
   const freezeColor = '#5BC0EB';
+  const maxFreezes = freezeInfo.maxFreezes ?? 2;
+  const isWeekly = frequency === 'weekly';
+  const earnPeriod = isWeekly ? 3 : 7;
+  const earnUnit = isWeekly ? 'week' : 'day';
+  const missUnit = isWeekly ? 'submissions this week' : 'a day';
+
+  // For large maxFreezes (5+), use compact display
+  const useCompactDots = maxFreezes > 4;
+
+  const statusText = freezeInfo.onCooldown && freezeInfo.available > 0
+    ? `Cooldown active — next use available in ${isWeekly ? 'a couple weeks' : 'a few days'}`
+    : freezeInfo.available > 0
+      ? `Auto-protects your streak if you miss ${missUnit}`
+      : freezeInfo.nextFreezeIn > 0
+        ? `${freezeInfo.nextFreezeIn} more ${earnUnit}${freezeInfo.nextFreezeIn === 1 ? '' : 's'} to earn a freeze`
+        : `Complete ${earnPeriod} consecutive ${earnUnit}s to earn a freeze`;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
@@ -24,44 +39,62 @@ export default function StreakFreezeInfo({ freezeInfo, color }: StreakFreezeInfo
         <Text style={[styles.title, { color: colors.textPrimary }]}>Streak Freeze</Text>
       </View>
 
-      {/* Freeze dots */}
+      {/* Freeze dots or compact count */}
       <View style={styles.dotsRow}>
-        {Array.from({ length: MAX_FREEZES }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.freezeDot,
-              {
-                backgroundColor: i < freezeInfo.available ? freezeColor : colors.backgroundTertiary,
-                borderColor: i < freezeInfo.available ? freezeColor : colors.border,
-              },
-            ]}
-          >
-            <Ionicons
-              name="snow"
-              size={14}
-              color={i < freezeInfo.available ? '#fff' : colors.textTertiary}
-            />
-          </View>
-        ))}
+        {useCompactDots ? (
+          <>
+            {Array.from({ length: Math.min(freezeInfo.available, 3) }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.freezeDot,
+                  {
+                    backgroundColor: freezeColor,
+                    borderColor: freezeColor,
+                  },
+                ]}
+              >
+                <Ionicons name="snow" size={14} color="#fff" />
+              </View>
+            ))}
+            {freezeInfo.available > 3 && (
+              <Text style={[styles.countText, { color: freezeColor }]}>
+                +{freezeInfo.available - 3}
+              </Text>
+            )}
+          </>
+        ) : (
+          Array.from({ length: maxFreezes }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.freezeDot,
+                {
+                  backgroundColor: i < freezeInfo.available ? freezeColor : colors.backgroundTertiary,
+                  borderColor: i < freezeInfo.available ? freezeColor : colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="snow"
+                size={14}
+                color={i < freezeInfo.available ? '#fff' : colors.textTertiary}
+              />
+            </View>
+          ))
+        )}
         <Text style={[styles.countText, { color: colors.textSecondary }]}>
-          {freezeInfo.available}/{MAX_FREEZES}
+          {freezeInfo.available}/{maxFreezes}
         </Text>
       </View>
 
       {/* Status line */}
       <Text style={[styles.statusText, { color: colors.textTertiary }]}>
-        {freezeInfo.onCooldown && freezeInfo.available > 0
-          ? 'Cooldown active — next use available in a few days'
-          : freezeInfo.available > 0
-            ? 'Auto-protects your streak if you miss a day'
-            : freezeInfo.nextFreezeIn > 0
-              ? `${freezeInfo.nextFreezeIn} more day${freezeInfo.nextFreezeIn === 1 ? '' : 's'} to earn a freeze`
-              : 'Complete 7 consecutive days to earn a freeze'}
+        {statusText}
       </Text>
 
       {/* Progress to next freeze */}
-      {freezeInfo.available < MAX_FREEZES && freezeInfo.nextFreezeIn > 0 && (
+      {freezeInfo.available < maxFreezes && freezeInfo.nextFreezeIn > 0 && (
         <View style={styles.progressRow}>
           <View style={[styles.progressBar, { backgroundColor: colors.backgroundTertiary }]}>
             <View
@@ -69,13 +102,13 @@ export default function StreakFreezeInfo({ freezeInfo, color }: StreakFreezeInfo
                 styles.progressFill,
                 {
                   backgroundColor: freezeColor,
-                  width: `${((7 - freezeInfo.nextFreezeIn) / 7) * 100}%`,
+                  width: `${((earnPeriod - freezeInfo.nextFreezeIn) / earnPeriod) * 100}%`,
                 },
               ]}
             />
           </View>
           <Text style={[styles.progressLabel, { color: colors.textTertiary }]}>
-            {7 - freezeInfo.nextFreezeIn}/7
+            {earnPeriod - freezeInfo.nextFreezeIn}/{earnPeriod}
           </Text>
         </View>
       )}

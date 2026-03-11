@@ -36,12 +36,13 @@ export default function StreaksScreen() {
 
   const hasStreaks = streakData.length > 0;
 
-  // Aggregate freeze inventory across all daily pacts
+  // Aggregate freeze inventory across all pacts
   const freezeInventory = streakData
     .filter(s => s.freezeInfo)
     .map(s => ({
       pact: pacts.find(p => p.id === s.pactId),
       freezeInfo: s.freezeInfo as FreezeInfo,
+      streakType: s.streakType,
     }))
     .filter(item => item.pact);
 
@@ -109,8 +110,11 @@ export default function StreaksScreen() {
                 <Text style={styles.freezeTotalLabel}>available</Text>
               </View>
             </View>
-            {freezeInventory.map(({ pact: p, freezeInfo: fi }) => {
+            {freezeInventory.map(({ pact: p, freezeInfo: fi, streakType }) => {
               const pColor = adaptColor(p!.color, isDark);
+              const isWeekly = streakType === 'weekly';
+              const earnUnit = isWeekly ? 'w' : 'd';
+              const dotCount = Math.min(fi.maxFreezes ?? 2, 4);
               return (
                 <View key={p!.id} style={[styles.freezeRow, { borderTopColor: colors.border }]}>
                   <View style={styles.freezeRowLeft}>
@@ -119,12 +123,12 @@ export default function StreaksScreen() {
                       {fi.available > 0
                         ? `${fi.available} freeze${fi.available > 1 ? 's' : ''} ready`
                         : fi.nextFreezeIn > 0
-                          ? `${fi.nextFreezeIn}d to earn`
+                          ? `${fi.nextFreezeIn}${earnUnit} to earn`
                           : 'Earning...'}
                     </Text>
                   </View>
                   <View style={styles.freezeDotsSmall}>
-                    {Array.from({ length: 2 }).map((_, i) => (
+                    {Array.from({ length: dotCount }).map((_, i) => (
                       <View
                         key={i}
                         style={[
