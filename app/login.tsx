@@ -9,6 +9,7 @@ import {
   Platform,
   Pressable,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -19,6 +20,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
+import LegalScreen from './legal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -37,11 +39,13 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { login, register, googleLogin } = useAuth();
+  const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
 
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
   });
 
+  const [showDevLogin, setShowDevLogin] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -123,107 +127,140 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <Logo color={colors.textPrimary} size={48} />
           <Text style={[styles.tagline, { color: colors.textTertiary }]}>
-            {isRegister ? 'Create your account' : 'Welcome back'}
+            {showDevLogin && isRegister ? 'Create your account' : 'Build habits with friends'}
           </Text>
         </View>
 
-        <View style={styles.form}>
-          {isRegister && (
-            <>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
-                placeholder="Full Name"
-                placeholderTextColor={colors.textTertiary}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-              />
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
-                placeholder="Username"
-                placeholderTextColor={colors.textTertiary}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-            </>
-          )}
-
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
-            placeholder="Email"
-            placeholderTextColor={colors.textTertiary}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
-            placeholder="Password"
-            placeholderTextColor={colors.textTertiary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <View style={styles.buttonContainer}>
-            {loading ? (
-              <ActivityIndicator size="large" color={colors.primary} />
-            ) : (
-              <Button
-                title={isRegister ? 'Create Account' : 'Sign In'}
-                onPress={handleSubmit}
-                variant="primary"
-                fullWidth
-                icon={isRegister ? 'person-add' : 'log-in'}
-              />
+        {/* Dev-only email/password form */}
+        {__DEV__ && showDevLogin ? (
+          <View style={styles.form}>
+            {isRegister && (
+              <>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
+                  placeholder="Full Name"
+                  placeholderTextColor={colors.textTertiary}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
+                  placeholder="Username"
+                  placeholderTextColor={colors.textTertiary}
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+              </>
             )}
-          </View>
 
-          {Platform.OS === 'web' && (
-            <>
-              <View style={styles.divider}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              </View>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
+              placeholder="Email"
+              placeholderTextColor={colors.textTertiary}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
 
-              <Pressable
-                onPress={() => promptGoogleAsync()}
-                disabled={!googleRequest || loading}
-                style={({ pressed }) => [
-                  styles.googleButton,
-                  { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
-                  pressed && { opacity: 0.8 },
-                  (!googleRequest || loading) && styles.disabled,
-                ]}
-              >
-                <GoogleIcon />
-                <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
-                  Continue with Google
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
+              placeholder="Password"
+              placeholderTextColor={colors.textTertiary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <View style={styles.buttonContainer}>
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.primary} />
+              ) : (
+                <Button
+                  title={isRegister ? 'Create Account' : 'Sign In'}
+                  onPress={handleSubmit}
+                  variant="primary"
+                  fullWidth
+                  icon={isRegister ? 'person-add' : 'log-in'}
+                />
+              )}
+            </View>
+
+            <Pressable onPress={() => setIsRegister(!isRegister)} style={styles.toggleButton}>
+              <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
+                {isRegister ? 'Already have an account? ' : "Don't have an account? "}
+                <Text style={{ color: colors.primary }}>
+                  {isRegister ? 'Sign In' : 'Create one'}
                 </Text>
-              </Pressable>
-            </>
-          )}
-
-          <Pressable onPress={() => setIsRegister(!isRegister)} style={styles.toggleButton}>
-            <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
-              {isRegister ? 'Already have an account? ' : "Don't have an account? "}
-              <Text style={{ color: colors.primary }}>
-                {isRegister ? 'Sign In' : 'Create one'}
               </Text>
-            </Text>
-          </Pressable>
+            </Pressable>
 
-          {!isRegister && (
             <Text style={[styles.hint, { color: colors.textTertiary }]}>
               Demo: nazrin@pact.app / password123
             </Text>
-          )}
-        </View>
+
+            <Pressable onPress={() => setShowDevLogin(false)} style={styles.toggleButton}>
+              <Text style={[styles.toggleText, { color: colors.textTertiary }]}>
+                Back to Google sign-in
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.form}>
+            {/* Google sign-in — primary auth method */}
+            <Pressable
+              onPress={() => promptGoogleAsync()}
+              disabled={!googleRequest || loading}
+              style={({ pressed }) => [
+                styles.googleButton,
+                { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+                pressed && { opacity: 0.8 },
+                (!googleRequest || loading) && styles.disabled,
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.textPrimary} />
+              ) : (
+                <>
+                  <GoogleIcon />
+                  <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
+                    Continue with Google
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            <Text style={[styles.termsText, { color: colors.textTertiary }]}>
+              By continuing, you agree to our{' '}
+              <Text style={{ color: colors.primary }} onPress={() => setLegalTab('terms')}>
+                Terms of Service
+              </Text>
+              {' '}and{' '}
+              <Text style={{ color: colors.primary }} onPress={() => setLegalTab('privacy')}>
+                Privacy Policy
+              </Text>
+            </Text>
+
+            {/* Dev-only: switch to email/password login */}
+            {__DEV__ && (
+              <Pressable onPress={() => setShowDevLogin(true)} style={styles.toggleButton}>
+                <Text style={[styles.hint, { color: colors.textTertiary }]}>
+                  Dev: Sign in with email/password
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </KeyboardAvoidingView>
+
+      {/* Legal modal */}
+      <Modal visible={legalTab !== null} animationType="slide" presentationStyle="pageSheet">
+        {legalTab && (
+          <LegalScreen initialTab={legalTab} onClose={() => setLegalTab(null)} />
+        )}
+      </Modal>
     </View>
   );
 }
@@ -270,18 +307,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing.sm,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    marginHorizontal: spacing.md,
+  termsText: {
     ...typography.caption,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   googleButton: {
     flexDirection: 'row',

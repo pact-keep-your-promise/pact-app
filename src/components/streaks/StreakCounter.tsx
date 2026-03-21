@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
+import StreakFlame from './StreakFlame';
 
 interface StreakCounterProps {
   count: number;
@@ -17,7 +17,7 @@ export default function StreakCounter({ count, color, streakType = 'daily' }: St
 
   return (
     <View style={styles.container}>
-      <Ionicons name="flame" size={28} color={countColor} />
+      <StreakFlame size={28} color={countColor} streak={count} />
       <Text style={[styles.count, { color: countColor }]}>{count}</Text>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{unit} streak</Text>
     </View>

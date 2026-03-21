@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,8 @@ import {
   Pressable,
   Modal,
   FlatList,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +26,15 @@ import ImageCropModal from '@/components/camera/ImageCropModal';
 import AIAnalyzing from '@/components/camera/AIAnalyzing';
 import VerificationResult from '@/components/camera/VerificationResult';
 
+// Only import CameraView on native
+let CameraView: any = null;
+let useCameraPermissions: any = null;
+if (Platform.OS !== 'web') {
+  const cam = require('expo-camera');
+  CameraView = cam.CameraView;
+  useCameraPermissions = cam.useCameraPermissions;
+}
+
 type CameraState = 'ready' | 'preview' | 'cropping' | 'analyzing' | 'result';
 
 export default function CameraScreen() {
@@ -38,10 +49,40 @@ export default function CameraScreen() {
   const [detectedPactId, setDetectedPactId] = useState<string | undefined>();
   const [showPactPicker, setShowPactPicker] = useState(false);
   const [sending, setSending] = useState(false);
+  const [facing, setFacing] = useState<'front' | 'back'>('back');
+  const cameraRef = useRef<any>(null);
+
+  // Camera permissions (only on native)
+  const [permission, requestPermission] = Platform.OS !== 'web' && useCameraPermissions
+    ? useCameraPermissions()
+    : [{ granted: false, canAskAgain: true }, async () => {}];
 
   const handleCapture = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    if (Platform.OS !== 'web' && cameraRef.current && permission?.granted) {
+      // Take photo with actual camera
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+      if (photo?.uri) {
+        setPhotoUri(photo.uri);
+        setState('preview');
+        return;
+      }
+    }
+
+    // Fallback: image picker (also used on web)
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+      setState('preview');
+    }
+  };
+
+  const handlePickFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -101,29 +142,76 @@ export default function CameraScreen() {
   const matchedPact = detectedPactId ? pacts.find((p) => p.id === detectedPactId) : undefined;
 
   if (state === 'ready') {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
-        <View style={styles.cameraPlaceholder}>
-          <View style={[styles.cameraBg, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
-            <Ionicons name="camera" size={64} color={colors.textTertiary} />
-            <Text style={[styles.cameraHint, { color: colors.textSecondary }]}>Take a photo to verify your pact</Text>
-            <Text style={[styles.cameraSubHint, { color: colors.textTertiary }]}>
-              Our AI will detect which pact it matches
-            </Text>
-          </View>
+    // Native with camera permission granted — show live viewfinder
+    const showLiveCamera = Platform.OS !== 'web' && CameraView && permission?.granted;
 
-          <View style={[styles.corner, styles.cornerTL, { borderColor: colors.primary }]} />
-          <View style={[styles.corner, styles.cornerTR, { borderColor: colors.primary }]} />
-          <View style={[styles.corner, styles.cornerBL, { borderColor: colors.primary }]} />
-          <View style={[styles.corner, styles.cornerBR, { borderColor: colors.primary }]} />
-        </View>
+    // Native, permission not yet determined
+    const showPermissionRequest = Platform.OS !== 'web' && CameraView && !permission?.granted;
+
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: '#000' }]}>
+        {showLiveCamera ? (
+          <View style={styles.cameraPlaceholder}>
+            <CameraView
+              ref={cameraRef}
+              style={StyleSheet.absoluteFill}
+              facing={facing}
+            />
+            <View style={[styles.corner, styles.cornerTL, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerTR, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerBL, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerBR, { borderColor: colors.primary }]} />
+          </View>
+        ) : showPermissionRequest ? (
+          <View style={styles.cameraPlaceholder}>
+            <View style={[styles.cameraBg, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
+              <Ionicons name="camera" size={64} color={colors.textTertiary} />
+              <Text style={[styles.cameraHint, { color: colors.textSecondary }]}>Camera access needed</Text>
+              <Text style={[styles.cameraSubHint, { color: colors.textTertiary }]}>
+                Allow camera access to take verification photos
+              </Text>
+              <Pressable
+                style={[styles.grantBtn, { backgroundColor: colors.primary }]}
+                onPress={requestPermission}
+              >
+                <Text style={styles.grantBtnText}>Grant Access</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          // Web fallback — placeholder UI
+          <View style={styles.cameraPlaceholder}>
+            <View style={[styles.cameraBg, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
+              <Ionicons name="camera" size={64} color={colors.textTertiary} />
+              <Text style={[styles.cameraHint, { color: colors.textSecondary }]}>Take a photo to verify your pact</Text>
+              <Text style={[styles.cameraSubHint, { color: colors.textTertiary }]}>
+                Our AI will detect which pact it matches
+              </Text>
+            </View>
+            <View style={[styles.corner, styles.cornerTL, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerTR, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerBL, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerBR, { borderColor: colors.primary }]} />
+          </View>
+        )}
 
         <View style={styles.controls}>
-          <View style={styles.controlSpacer} />
+          {showLiveCamera ? (
+            <View style={styles.controlSpacer}>
+              <Pressable
+                onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')}
+                style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)' }]}
+              >
+                <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.controlSpacer} />
+          )}
           <ShutterButton onPress={handleCapture} />
           <View style={styles.controlSpacer}>
-            <Pressable onPress={handleCapture} style={[styles.iconButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
-              <Ionicons name="images-outline" size={24} color={colors.textSecondary} />
+            <Pressable onPress={handlePickFromGallery} style={[styles.iconButton, { backgroundColor: showLiveCamera ? 'rgba(255,255,255,0.15)' : colors.backgroundSecondary, borderColor: showLiveCamera ? 'rgba(255,255,255,0.3)' : colors.border }]}>
+              <Ionicons name="images-outline" size={24} color={showLiveCamera ? '#fff' : colors.textSecondary} />
             </Pressable>
           </View>
         </View>
@@ -245,6 +333,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textAlign: 'center',
     paddingHorizontal: spacing.xxxl,
+  },
+  grantBtn: {
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+  },
+  grantBtnText: {
+    ...typography.bodyBold,
+    color: '#fff',
   },
   corner: {
     position: 'absolute',

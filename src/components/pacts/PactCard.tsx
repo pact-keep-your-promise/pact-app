@@ -12,6 +12,9 @@ import Card from '@/components/ui/Card';
 import IconBadge from '@/components/ui/IconBadge';
 import AvatarGroup from '@/components/ui/AvatarGroup';
 import Avatar from '@/components/ui/Avatar';
+import StreakFlame from '@/components/streaks/StreakFlame';
+import TodayProgress from '@/components/streaks/TodayProgress';
+import WeeklyProgressBar from '@/components/streaks/WeeklyProgressBar';
 import { adaptColor } from '@/utils/colorUtils';
 
 interface PactCardProps {
@@ -22,11 +25,11 @@ interface PactCardProps {
 export default function PactCard({ pact, onPress }: PactCardProps) {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { getParticipants, getStreakForUserPact, getPendingParticipants } = useDataHelpers();
+  const { getParticipants, getStreakForPact, getPendingParticipants } = useDataHelpers();
   const nudgeMutation = useNudge();
   const pactColor = adaptColor(pact.color, isDark);
   const participants = getParticipants(pact);
-  const myStreak = getStreakForUserPact(pact.id, user?.id || '');
+  const pactStreak = getStreakForPact(pact.id);
   const pendingFriends = getPendingParticipants(pact);
 
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(new Set());
@@ -80,11 +83,25 @@ export default function PactCard({ pact, onPress }: PactCardProps) {
 
         <View style={styles.right}>
           <View style={styles.streakRow}>
-            <Ionicons name="flame" size={16} color={colors.streakFireText} />
+            <StreakFlame size={16} color={colors.streakFireText} streak={pactStreak?.currentStreak || 0} />
             <Text style={[styles.streakCount, { color: colors.streakFireText }]}>
-              {myStreak?.currentStreak || 0}
+              {pactStreak?.currentStreak || 0}
             </Text>
           </View>
+          {pactStreak?.weeklyProgress ? (
+            <WeeklyProgressBar
+              progress={pactStreak.weeklyProgress}
+              color={pactColor}
+              compact
+            />
+          ) : pactStreak?.todayStatus ? (
+            <TodayProgress
+              completed={pactStreak.todayStatus.completed}
+              total={pactStreak.todayStatus.total}
+              color={pactColor}
+              compact
+            />
+          ) : null}
           <AvatarGroup
             users={participants.map((p) => ({ avatar: p.avatar, name: p.name }))}
             max={3}

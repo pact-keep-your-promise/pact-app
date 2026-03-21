@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { User, Pact } from '@/data/types';
 import { useDataHelpers } from '@/api/helpers';
 import Avatar from '@/components/ui/Avatar';
-import Badge from '@/components/ui/Badge';
 import NudgeButton from './NudgeButton';
 
 interface ParticipantRowProps {
@@ -17,15 +17,21 @@ interface ParticipantRowProps {
 
 export default function ParticipantRow({ user, pact, onNudge }: ParticipantRowProps) {
   const { colors } = useTheme();
-  const { getStreakForUserPact, recentActivity } = useDataHelpers();
-  const streak = getStreakForUserPact(pact.id, user.id);
+  const router = useRouter();
+  const { recentActivity } = useDataHelpers();
   const today = new Date().toISOString().split('T')[0];
   const hasSubmittedToday = recentActivity.some(
     (s) => s.pactId === pact.id && s.userId === user.id && s.timestamp.split('T')[0] === today
   );
 
   return (
-    <View style={[styles.row, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
+    <Pressable
+      style={[styles.row, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+      onPress={() => {
+        if (user.isCurrentUser) router.push('/profile');
+        else router.push(`/user/${user.id}`);
+      }}
+    >
       <Avatar uri={user.avatar} name={user.name} size={44} />
       <View style={styles.info}>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{user.isCurrentUser ? 'You' : user.name}</Text>
@@ -41,17 +47,11 @@ export default function ParticipantRow({ user, pact, onNudge }: ParticipantRowPr
         </View>
       </View>
       <View style={styles.right}>
-        <Badge
-          icon="flame"
-          label={`${streak?.currentStreak || 0}`}
-          color={colors.backgroundTertiary}
-          textColor={colors.streakFire}
-        />
         {!user.isCurrentUser && !hasSubmittedToday && (
           <NudgeButton onPress={onNudge} userName={user.name} />
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

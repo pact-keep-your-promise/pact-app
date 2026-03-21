@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, FlatList, StyleSheet, Text, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,11 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, typography } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useNotifications, useFriendRequests } from '@/api/queries';
+import { useFlatNotifications, useFriendRequests } from '@/api/queries';
 import { useMarkNotificationsRead, useAcceptInvitation, useDeclineInvitation, useAcceptFriendRequest, useDeclineFriendRequest } from '@/api/mutations';
 import { queryKeys } from '@/api/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import IconBadge from '@/components/ui/IconBadge';
+import Skeleton from '@/components/ui/Skeleton';
+import ErrorState from '@/components/shared/ErrorState';
 import { Notification } from '@/data/types';
 import { adaptColor } from '@/utils/colorUtils';
 
@@ -33,7 +35,15 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const queryClient = useQueryClient();
-  const { data: dataNotifications = [] } = useNotifications();
+  const {
+    data: dataNotifications,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    refetch,
+  } = useFlatNotifications();
   const markReadMutation = useMarkNotificationsRead();
   const acceptMutation = useAcceptInvitation();
   const declineMutation = useDeclineInvitation();
@@ -49,9 +59,11 @@ export default function NotificationsScreen() {
     pact_invitation:  { icon: 'mail',         color: adaptColor('#7C5CFC', isDark) },
     friend_request:   { icon: 'person-add',   color: adaptColor('#4ECDC4', isDark) },
     friend_accepted:  { icon: 'people',       color: adaptColor('#95E1D3', isDark) },
+    pact_declined:    { icon: 'close-circle', color: adaptColor('#FF6B6B', isDark) },
+    reaction:         { icon: 'heart',        color: adaptColor('#FF6B6B', isDark) },
+    chat_message:     { icon: 'chatbubble',   color: adaptColor('#4ECDC4', isDark) },
   }), [isDark]);
 
-  const [notificationsList, setNotificationsList] = useState(dataNotifications);
   const [markingRead, setMarkingRead] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
@@ -62,15 +74,8 @@ export default function NotificationsScreen() {
     }, [queryClient])
   );
 
-  React.useEffect(() => {
-    setNotificationsList(dataNotifications);
-  }, [dataNotifications]);
-
   const markAllRead = useCallback(async () => {
     setMarkingRead(true);
-    setNotificationsList((prev) =>
-      prev.map((n) => ({ ...n, read: true }))
-    );
     try {
       await markReadMutation.mutateAsync();
     } catch (e) {
@@ -78,6 +83,12 @@ export default function NotificationsScreen() {
     }
     setMarkingRead(false);
   }, [markReadMutation]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const renderItem = useCallback(
     ({ item }: { item: Notification }) => {
@@ -200,6 +211,15 @@ export default function NotificationsScreen() {
 
   const keyExtractor = useCallback((item: Notification) => item.id, []);
 
+  const renderFooter = useCallback(() => {
+    if (!isFetchingNextPage) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.textTertiary} />
+      </View>
+    );
+  }, [isFetchingNextPage, colors]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       {/* Header */}
@@ -218,29 +238,48 @@ export default function NotificationsScreen() {
         </Pressable>
       </View>
 
-      {/* Notification List */}
-      <FlatList
-        data={notificationsList}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={notificationsList.length === 0 ? styles.emptyContainer : undefined}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons
-              name="notifications-off-outline"
-              size={64}
-              color={colors.textTertiary}
-            />
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-              All caught up!
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
-              No notifications yet
-            </Text>
-          </View>
-        }
-      />
+      {/* Notification List with infinite scroll */}
+      {isLoading ? (
+        <View style={styles.skeletonContainer}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <View key={i} style={[styles.row, { borderBottomColor: colors.border }]}>
+              <Skeleton width={44} height={44} radius={22} />
+              <View style={{ flex: 1, gap: spacing.sm }}>
+                <Skeleton width="80%" height={16} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : isError ? (
+        <ErrorState message="Couldn't load notifications" onRetry={() => refetch()} />
+      ) : (
+        <FlatList
+          data={dataNotifications}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={renderFooter}
+          contentContainerStyle={dataNotifications.length === 0 ? styles.emptyContainer : undefined}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="notifications-off-outline"
+                size={64}
+                color={colors.textTertiary}
+              />
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                All caught up!
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
+                No notifications yet
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -345,5 +384,12 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  footerLoader: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+  },
+  skeletonContainer: {
+    flex: 1,
   },
 });

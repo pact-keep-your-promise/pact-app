@@ -1,6 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+export class ApiError extends Error {
+  status: number;
+  field?: string;
+  constructor(message: string, status: number, field?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.field = field;
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message = 'Network error. Please check your connection.') {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
 export const getBaseUrl = () => {
   // EXPO_PUBLIC_API_URL takes priority (set for mobile/tunnel mode)
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -50,7 +68,6 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   const token = await getToken();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
-    // Bypass localtunnel splash page when using tunnel mode
     'Bypass-Tunnel-Reminder': 'true',
   };
 
@@ -58,19 +75,34 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Don't set Content-Type for FormData
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  // Abort after 30 seconds
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new NetworkError('Request timed out. Please try again.');
+    }
+    throw new NetworkError();
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    throw new ApiError(body.error || `HTTP ${res.status}`, res.status, body.field);
   }
 
   return res.json();

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Text, Image, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Text, Image, Pressable, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import Logo from '@/components/ui/Logo';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -9,7 +10,7 @@ import { spacing, borderRadius, typography, layout } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDataHelpers } from '@/api/helpers';
-import { usePacts, useNotifications } from '@/api/queries';
+import { usePacts, useFlatNotifications } from '@/api/queries';
 import { queryKeys } from '@/api/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import PactCard from '@/components/pacts/PactCard';
@@ -17,6 +18,9 @@ import ActivityFeed from '@/components/pacts/ActivityFeed';
 import DeadlineWarning from '@/components/pacts/DeadlineWarning';
 import EmptyState from '@/components/shared/EmptyState';
 import HomeSkeleton from '@/components/shared/HomeSkeleton';
+import ErrorState from '@/components/shared/ErrorState';
+
+const HEADER_HEIGHT = 64;
 
 const NEXT_MODE: Record<string, 'light' | 'dark'> = {
   system: 'light',
@@ -30,8 +34,8 @@ export default function PactsHomeScreen() {
   const { colors, isDark, mode, setMode } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { data: pacts = [], isLoading: loading } = usePacts();
-  const { data: notifications = [] } = useNotifications();
+  const { data: pacts = [], isLoading: loading, isError, refetch } = usePacts();
+  const { data: notifications = [] } = useFlatNotifications();
   const { getUnreadNotificationCount } = useDataHelpers();
   const [showWarning, setShowWarning] = useState(true);
 
@@ -46,40 +50,53 @@ export default function PactsHomeScreen() {
 
   const deadlineWarning = notifications.find(n => n.type === 'deadline_warning' && !n.read);
 
+  const headerContent = (
+    <View style={[styles.header, { paddingHorizontal: spacing.xl }]}>
+      <Logo color={colors.textPrimary} width={78} height={40} />
+      <View style={styles.headerRight}>
+        <Pressable
+          style={[styles.themeToggle, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}
+          onPress={() => setMode(NEXT_MODE[mode])}
+        >
+          <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color={colors.textSecondary} />
+        </Pressable>
+        <Pressable
+          style={[styles.themeToggle, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}
+          onPress={() => router.push('/notifications')}
+        >
+          <Ionicons name="notifications-outline" size={18} color={colors.textSecondary} />
+          {getUnreadNotificationCount() > 0 && (
+            <View style={[styles.bellDot, { backgroundColor: colors.error }]} />
+          )}
+        </Pressable>
+        <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
+          <Image source={{ uri: user?.avatar }} style={[styles.profileAvatar, { borderColor: colors.primary }]} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
+      {/* Sticky Header */}
+      {Platform.OS === 'web' ? (
+        <View style={{ position: 'absolute' as any, top: 0, left: 0, right: 0, zIndex: 10, paddingTop: Math.max(insets.top, spacing.xs), backgroundColor: colors.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
+          {headerContent}
+        </View>
+      ) : (
+        <BlurView
+          intensity={80}
+          tint={isDark ? 'dark' : 'light'}
+          style={[styles.stickyHeader, { borderBottomColor: colors.border }]}
+        >
+          {headerContent}
+        </BlurView>
+      )}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_HEIGHT + Math.max(insets.top, spacing.xs) }]}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Logo color={colors.textPrimary} />
-            <Text style={[styles.greeting, { color: colors.textTertiary }]}>Keep your promises</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <Pressable
-              style={[styles.themeToggle, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}
-              onPress={() => setMode(NEXT_MODE[mode])}
-            >
-              <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color={colors.textSecondary} />
-            </Pressable>
-            <Pressable
-              style={[styles.themeToggle, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}
-              onPress={() => router.push('/notifications')}
-            >
-              <Ionicons name="notifications-outline" size={18} color={colors.textSecondary} />
-              {getUnreadNotificationCount() > 0 && (
-                <View style={[styles.bellDot, { backgroundColor: colors.error }]} />
-              )}
-            </Pressable>
-            <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
-              <Image source={{ uri: user?.avatar }} style={[styles.profileAvatar, { borderColor: colors.primary }]} />
-            </Pressable>
-          </View>
-        </View>
-
         {/* Deadline Warning */}
         {showWarning && deadlineWarning && (
           <View>
@@ -93,6 +110,8 @@ export default function PactsHomeScreen() {
 
         {loading ? (
           <HomeSkeleton />
+        ) : isError ? (
+          <ErrorState message="Couldn't load your pacts" onRetry={() => refetch()} />
         ) : (
           <>
             {/* Activity Feed */}
@@ -135,14 +154,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.xxl,
+  },
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    height: HEADER_HEIGHT,
+    paddingVertical: spacing.sm,
   },
   headerRight: {
     flexDirection: 'row',
@@ -156,10 +183,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  greeting: {
-    ...typography.caption,
-    marginTop: spacing.xxs,
   },
   profileButton: {
     position: 'relative',

@@ -5,12 +5,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 interface CalendarGridProps {
   completedDates: string[];
+  freezeDates?: string[];
   color: string;
 }
 
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-export default function CalendarGrid({ completedDates, color }: CalendarGridProps) {
+export default function CalendarGrid({ completedDates, freezeDates = [], color }: CalendarGridProps) {
   const { colors } = useTheme();
   const today = new Date();
   const year = today.getFullYear();
@@ -23,6 +24,8 @@ export default function CalendarGrid({ completedDates, color }: CalendarGridProp
   const monthName = today.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   const completedSet = new Set(completedDates);
+  const freezeSet = new Set(freezeDates);
+  const FREEZE_COLOR = '#5BC0EB';
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -61,6 +64,7 @@ export default function CalendarGrid({ completedDates, color }: CalendarGridProp
 
             const dateStr = formatDate(day);
             const isCompleted = completedSet.has(dateStr);
+            const isFreezeDay = freezeSet.has(dateStr);
             const isToday = day === todayDate;
 
             return (
@@ -68,16 +72,17 @@ export default function CalendarGrid({ completedDates, color }: CalendarGridProp
                 <View
                   style={[
                     styles.dot,
-                    isCompleted && { backgroundColor: color },
-                    !isCompleted && { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
+                    isCompleted && !isFreezeDay && { backgroundColor: color },
+                    isFreezeDay && { backgroundColor: FREEZE_COLOR },
+                    !isCompleted && !isFreezeDay && { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
                     isToday && { borderWidth: 2, borderColor: colors.primary },
                   ]}
                 >
                   <Text
                     style={[
                       styles.dateText,
-                      isCompleted && { color: colors.textInverse },
-                      !isCompleted && { color: colors.textTertiary },
+                      (isCompleted || isFreezeDay) && { color: colors.textInverse },
+                      !isCompleted && !isFreezeDay && { color: colors.textTertiary },
                     ]}
                   >
                     {day}
